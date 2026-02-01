@@ -1,0 +1,14 @@
+{
+  "domain": "wirenboard",
+  "name": "wirenboard",
+  "codeowners": ["@leonidrastorguev"],
+  "config_flow": true,
+  "dependencies": ["modbus"],
+  "documentation": "https://github.com/sergeylysov/wb_smart_local",
+  "homekit": {},
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/sergeylysov/wb_smart_local/issues/",
+  "requirements": ["pymodbus>=3.11.1"],
+  "version": "0.0.1",
+  "zeroconf": []
+}
