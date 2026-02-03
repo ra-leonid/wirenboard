@@ -13,7 +13,7 @@ from homeassistant import config_entries
 from homeassistant.components.modbus import modbus
 
 from .const import DOMAIN
-from .registers import WBSmartRegisters
+from .registers import WBMRRegisters
 
 STEP_TCP_DATA_SCHEMA = vol.Schema(
     {
@@ -76,30 +76,12 @@ class WBSmartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return OptionsFlowHandler()
 
 class OptionsFlowHandler(OptionsFlow):
-    # Здесь точка входа async_step_init,
-    # в остальном все аналогично ConfigFlow
-    async def async_step_init(self, user_input: dict = None):
-        errors: dict[str, str] = {}
-
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
         if user_input is not None:
-            if user_input.pop("update_info", False):
-                #session = async_get_clientsession(self.hass)
-                #radio = Karadio32Api(self.config_entry.data[CONF_URL], session)
-                try:
-                    user_input["host_port"] = self.config_entry.data["host_port"]
-                    user_input["host_ip"] = self.config_entry.data["host_ip"]
-                    user_input["device_type"] = self.config_entry.data["device_type"]
-                    user_input["device_id"] = self.config_entry.data["device_id"]
-                except Exception as e:
-                    errors["base"] = str(e)
-
-            if not errors:
-                # Если все ОК, то обновляем запись об интеграции
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=user_input
-                )
-                # Подаем сигнал, что все ОК, но не создаем новых объектов
-                return self.async_create_entry(title=None, data=None)
+            return self.async_create_entry(data=user_input)
 
         # Схема создается непосредственно в функции,
         # чтобы подставить значения из конфигурации
@@ -115,5 +97,8 @@ class OptionsFlowHandler(OptionsFlow):
         )
 
         return self.async_show_form(
-            step_id="init", data_schema=option_schema, errors=errors
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                option_schema, self.config_entry.options
+            ),
         )

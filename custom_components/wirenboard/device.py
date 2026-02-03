@@ -11,115 +11,89 @@ from pymodbus import ModbusException
 from pymodbus.exceptions import ModbusIOException
 
 from .hub import modbus_hub
-from .registers import WBSmartRegisters
+from .registers import WBMRRegisters
 
 _LOGGER = logging.getLogger(__name__)
+
 class WBSmart:
-    def __init__(self, hass: HomeAssistant, name, host_ip: str, host_port: int, device_type:str, device_id: int) ->None:
-        self._name = f"{device_type}-{device_id}"
-        self._hass = hass
-        self._device_type = device_type
-        self._device_id = device_id
+    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type:str, device_id: int) ->None:
+        self.__name = f"{device_type}-{device_id}"
+        self.__hass = hass
+        self.__device_type = device_type
+        self.__device_id = device_id
 
         self._hub = modbus_hub(hass=hass, host=host_ip, port=host_port)
 
-        # Инициализируем атрибуты, которые используются в update()
-        self._states  = [False, False, False, False, False, False]
-
-        # Инициализируем битовые массивы
-        self._config_bits = None
-
         # Флаг для отслеживания состояния подключения
-        self._connection_attempts = 0
-        self._is_connected = False
+        # TODO Добавить код увеличения попыток
+        self.__connection_attempts = 0
+        self.__is_connected = False
 
     # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
+
+    def __del__(self):
+        self._hub.disconnect()
 
     async def _check_and_reconnect(self):
         """Проверяет подключение и пытается переподключиться при необходимости"""
         try:
             # Простая проверка - если клиент подключен, считаем что подключение есть
             if hasattr(self._hub, '_client') and self._hub._client.connected:
-                self._is_connected = True
+                self.connected()
                 return True
             
             # Если не подключен, пытаемся подключиться
-            _LOGGER.info(f"Попытка подключения к устройству {self._name}")
+            _LOGGER.info(f"Попытка подключения к устройству {self.__name}")
             await self._hub.connect()
             
             # Добавляем небольшую задержку после подключения для стабилизации
             await asyncio.sleep(0.2)
-            
-            self._is_connected = True
-            _LOGGER.info(f"Успешно подключились к устройству {self._name}")
+
+            self.connected()
+            _LOGGER.info(f"Успешно подключились к устройству {self.__name}")
             return True
         except Exception as e:
-            _LOGGER.error(f"Не удалось подключиться к устройству {self._name}: {e}")
-            self._is_connected = False
+            _LOGGER.error(f"Не удалось подключиться к устройству {self.__name}: {e}")
+            self.disconnected()
             return False
 
-    async def update(self):
-        try:
-            # Проверяем подключение
-            if not await self._check_and_reconnect():
-                _LOGGER.debug(f"Не удалось подключиться к устройству {self._name}, пропускаем обновление")
-                self._is_connected = False
-                return
-                
-            async with async_timeout.timeout(15):
-                #self._config_bits = await self._hub.read_holding_register_bits(WBSmartRegisters.module_config, 6)
-                self._config_bits = await self._hub.read_coils(0, 6, self._device_id)
+    @property
+    def name(self):
+        return self.__name
 
-                # Проверяем, что данные получены корректно
-                if self._config_bits is None:
-                    _LOGGER.debug("Не удалось получить конфигурационные биты модуля")
-                    self._is_connected = False
-                    return
-                
-                # Если данные получены успешно, считаем что подключение активно
-                self._is_connected = True
+    @property
+    def device_id(self):
+        return self.__device_id
 
-                for i in range(6):
-                    _LOGGER.warning(f"🔧 КАНАЛ[{i}=: connecting_sensors={self._config_bits[i]}")
-                    self._states[i] = bool(self._config_bits[i])
-        except TimeoutError:
-            _LOGGER.warning(f"Polling timed out for {self._name} - устройство не отвечает")
-            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-            self._connection_attempts = 0
-            self._is_connected = False
-            return
-        except ModbusIOException as value_error:
-            _LOGGER.warning(f"ModbusIOException for {self._name}: {value_error.string}")
-            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-            self._connection_attempts = 0
-            self._is_connected = False
-            return
-        except ModbusException as value_error:
-            _LOGGER.warning(f"ModbusException for {self._name}: {value_error.string}")
-            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-            self._connection_attempts = 0
-            self._is_connected = False
-            return
-        except InvalidStateError as ex:
-            _LOGGER.error(f"InvalidStateError Exceptions for {self._name}")
-            self._is_connected = False
-            return
-        except Exception as e:
-            _LOGGER.error(f"Неожиданная ошибка при обновлении {self._name}: {e}")
-            self._is_connected = False
-            return
+    @property
+    def is_connected(self):
+        """Возвращает состояние подключения к устройству"""
+        return self.__is_connected
 
-    def get_name(self):
-        return self._name
+    def connected(self):
+        """Возвращает состояние подключения к устройству"""
+        self.__is_connected = True
 
-    def get_switch_status(self,channel:int):
-        return self._states[channel]
+    def disconnected(self):
+        """Возвращает состояние подключения к устройству"""
+        self.__is_connected = False
 
-    async def write_config_register(self):
+    @property
+    def connection_attempts(self):
+        """Возвращает состояние подключения к устройству"""
+        return self.__connection_attempts
+
+    def inc_connection_attempts(self):
+        self.__connection_attempts += 1
+
+    def reset_connection_attempts(self):
+        self.__connection_attempts = 0
+
+    async def write_coil_registers(self, address:int, values):
         try:
             async with async_timeout.timeout(5):
-                #await self._hub.write_holding_register_bits(WBSmartRegisters.module_config, self._config_bits)
-                await self._hub.write_coils(0, self._states.copy(), self._device_id)
+                _LOGGER.debug(f"Запись в coil регистры {address} устройства {self.device_id} значения {values}")
+                await self._hub.write_coils(address, values.copy(), self.device_id)
         except TimeoutError:
             _LOGGER.warning("Pulling timed out")
             return
@@ -130,14 +104,211 @@ class WBSmart:
             _LOGGER.error(f"InvalidStateError Exceptions")
             return
 
-    async def set_switch_status(self,channel:int,state:bool):
-        #self._first_group_valve_is_open = state
-        _LOGGER.warning(f"До изменение состояния канала {channel}: state={state}; self._states={self._states}")
-        self._states[channel] = state
-        _LOGGER.warning(f"Изменен массив {channel}: state={state}; self._states={self._states}")
-        await self.write_config_register()
-        _LOGGER.warning(f"После изменение состояния канала {channel}: state={state}; self._states={self._states}")
+    async def write_holding_register(self, address:int, value:int):
+        try:
+            async with async_timeout.timeout(5):
+                _LOGGER.debug(f"Запись в holding регистр {address} устройства {self.device_id} значения {value}")
+                await self._hub.write_holding_register(address, value, self.device_id)
+        except TimeoutError:
+            _LOGGER.warning("Pulling timed out")
+            return
+        except ModbusException as value_error:
+            _LOGGER.warning(f"Error write holding register, modbus Exception {value_error.string}")
+            return
+        except InvalidStateError as ex:
+            _LOGGER.error(f"InvalidStateError Exceptions")
+            return
 
-    def is_connected(self):
-        """Возвращает состояние подключения к устройству"""
-        return self._is_connected
+
+class WBMr(WBSmart, WBMRRegisters):
+    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type: str,
+                 device_id: int) -> None:
+
+        super().__init__(hass, host_ip, host_port, device_type, device_id)
+
+        # Инициализируем атрибуты, которые используются в update()
+        self._states = [False]*6
+        self._input_mode = [2] + [1]*6
+        self._status_outputs_when_power_applied = 0
+
+    # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
+
+    async def update(self):
+        try:
+            # Проверяем подключение
+            if not await self._check_and_reconnect():
+                _LOGGER.debug(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
+                self.disconnected()
+                return
+
+            async with async_timeout.timeout(15):
+                result = await self._hub.read_coils(self.relay_statuses_addr, self.relay_count, self.device_id)
+
+                # Проверяем, что данные получены корректно
+                if result is None:
+                    _LOGGER.debug("Не удалось получить состояния реле")
+                    self.disconnected()
+                    return
+
+                # Если данные получены успешно, считаем что подключение активно
+                self.connected()
+                self._states = result
+        except TimeoutError:
+            _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except ModbusIOException as value_error:
+            _LOGGER.warning(f"ModbusIOException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except ModbusException as value_error:
+            _LOGGER.warning(f"ModbusException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except InvalidStateError as ex:
+            _LOGGER.error(f"InvalidStateError Exceptions for {self.name}")
+            self.disconnected()
+            return
+        except Exception as e:
+            _LOGGER.error(f"Неожиданная ошибка при обновлении {self.name}: {e}")
+            self.disconnected()
+            return
+
+    async def update_setting(self):
+        try:
+            # Проверяем подключение
+            if not await self._check_and_reconnect():
+                _LOGGER.debug(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
+                self.disconnected()
+                return
+
+            async with async_timeout.timeout(15):
+
+                # Состояние выходов при подаче питания
+                result = await self._hub.read_holding_register_uint16(self.status_outputs_when_power_applied_addr, 1, self.device_id)
+                # Проверяем, что данные получены корректно
+                if result is None:
+                    _LOGGER.debug("Не удалось получить 'Состояние выходов при подаче питания'")
+                    self.disconnected()
+                    return
+                self._status_outputs_when_power_applied = result[0]
+
+                # Режимы работы входов модуля
+                result = await self._hub.read_holding_register_uint16(self.input_mode_addr, self.relay_count, self.device_id)
+                # Проверяем, что данные получены корректно
+                if result is None:
+                    _LOGGER.debug("Не удалось получить режимы работы входов модуля")
+                    self.disconnected()
+                    return
+
+                result0 = await self._hub.read_holding_register_uint16(self.input_mode_0_addr, 1, self.device_id)
+                # Проверяем, что данные получены корректно
+                if result0 is None:
+                    _LOGGER.debug("Не удалось получить режимы работы входа 0 модуля")
+                    self.disconnected()
+                    return
+
+                # Если данные получены успешно, считаем что подключение активно
+                self._input_mode = result0 + result
+
+                self.connected()
+
+        except TimeoutError:
+            _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except ModbusIOException as value_error:
+            _LOGGER.warning(f"ModbusIOException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except ModbusException as value_error:
+            _LOGGER.warning(f"ModbusException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except InvalidStateError as ex:
+            _LOGGER.error(f"InvalidStateError Exceptions for {self.name}")
+            self.disconnected()
+            return
+        except Exception as e:
+            _LOGGER.error(f"Неожиданная ошибка при обновлении {self.name}: {e}")
+            self.disconnected()
+            return
+
+    def get_switch_status(self, channel: int):
+        _LOGGER.debug(f"get_switch_status:  _states={self._states}; channel={channel}")
+        return self._states[channel]
+
+    def get_switch_input_mode(self, channel: int):
+        key = self._input_mode[channel]
+        if(channel == 0):
+            return self.INPUT_MODE_VALUES_0[key]
+        else:
+            return self.INPUT_MODE_VALUES[key]
+
+    def get_status_outputs_when_power_applied(self):
+        return self.STATUS_OUTPUTS_WHEN_POWER_APPLIED[self._status_outputs_when_power_applied]
+
+    async def set_switch_status(self, channel: int, state: bool):
+        _LOGGER.debug(f"set_switch_status 1:  _states={self._states}; channel={channel}")
+        self._states[channel] = state
+        await self.write_coil_registers(self.relay_statuses_addr, self._states)
+        _LOGGER.debug(f"set_switch_status 2:  _states={self._states}; channel={channel}")
+
+    async def set_input_mode(self, channel: int, option: str):
+        if(channel == 0):
+            dict_values = self.INPUT_MODE_VALUES_0
+            address = self.input_mode_0_addr
+        else:
+            dict_values = self.INPUT_MODE_VALUES
+            address = self.input_mode_addr + channel - 1
+
+        # Возвращает первый найденный ключ
+        option_key = next((k for k, v in dict_values.items() if v == option), None)
+
+        self._input_mode[channel] = option_key
+        await self.write_holding_register(address, option_key)
+        # task1 = asyncio.create_task(self.write_holding_register(address, option_key))
+        # successfully = await task1
+        # if (successfully):
+        #     self._input_mode[channel] = option_key
+
+
+    async def set_status_outputs_when_power_applied(self, option: str):
+        # Возвращает первый найденный ключ
+        option_key = next((k for k, v in self.STATUS_OUTPUTS_WHEN_POWER_APPLIED.items() if v == option), None)
+
+        self._status_outputs_when_power_applied = option_key
+        await self.write_holding_register(self.status_outputs_when_power_applied_addr, option_key)
+
+        # task1 = asyncio.create_task(self.write_holding_register(self.status_outputs_when_power_applied_addr, option_key))
+        # successfully = await task1
+        # if (successfully):
+        #     self._status_outputs_when_power_applied = option_key
+
+    def get_attr_options(self, select_type:str, channel:int | None = None):
+        _LOGGER.debug(f"get_attr_options:  select_type={select_type}; channel={channel}")
+        match select_type:
+            case "input_mode":
+                if (channel==0):
+                    _LOGGER.debug(f"self.INPUT_MODE_VALUES_0.values()={self.INPUT_MODE_VALUES_0.values()}")
+                    return list(self.INPUT_MODE_VALUES_0.values())
+                else:
+                    _LOGGER.debug(f"self.INPUT_MODE_VALUES.values()={self.INPUT_MODE_VALUES.values()}")
+                    return list(self.INPUT_MODE_VALUES.values())
+            case "status_outputs_when_power_applied":
+                _LOGGER.debug(f"self.STATUS_OUTPUTS_WHEN_POWER_APPLIED.values()={self.STATUS_OUTPUTS_WHEN_POWER_APPLIED.values()}")
+                return list(self.STATUS_OUTPUTS_WHEN_POWER_APPLIED.values())
+            case _:
+                return list()
