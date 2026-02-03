@@ -17,10 +17,10 @@ _LOGGER = logging.getLogger(__name__)
 
 class WBSmart:
     def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type:str, device_id: int) ->None:
-        self.__name = f"{device_type}-{device_id}"
-        self.__hass = hass
-        self.__device_type = device_type
+        self.__device_type = device_type.replace("-", "_")
         self.__device_id = device_id
+        self.__name = f"{self.__device_type}_{self.__device_id}"
+        self.__hass = hass
 
         self._hub = modbus_hub(hass=hass, host=host_ip, port=host_port)
 
@@ -60,6 +60,10 @@ class WBSmart:
     @property
     def name(self):
         return self.__name
+
+    @property
+    def device_type(self):
+        return self.__device_type
 
     @property
     def device_id(self):
@@ -111,13 +115,14 @@ class WBSmart:
                 await self._hub.write_holding_register(address, value, self.device_id)
         except TimeoutError:
             _LOGGER.warning("Pulling timed out")
-            return
+            return False
         except ModbusException as value_error:
             _LOGGER.warning(f"Error write holding register, modbus Exception {value_error.string}")
-            return
+            return False
         except InvalidStateError as ex:
             _LOGGER.error(f"InvalidStateError Exceptions")
-            return
+            return False
+        return True
 
 
 class WBMr(WBSmart, WBMRRegisters):
@@ -128,8 +133,9 @@ class WBMr(WBSmart, WBMRRegisters):
 
         # Инициализируем атрибуты, которые используются в update()
         self._states = [False]*6
-        self._input_mode = [2] + [1]*6
+        self._input_mode = [2] + [1]*(self.input_count - 1)
         self._status_outputs_when_power_applied = 0
+        self._entry_trigger_count = [0]*self.input_count
 
     # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
 
@@ -150,9 +156,29 @@ class WBMr(WBSmart, WBMRRegisters):
                     self.disconnected()
                     return
 
+                self._states = result
+
+                # Счетчики срабатываний входов
+                result = await self._hub.read_holding_register_uint16(self.entry_trigger_counter_addr, self.input_count-1, self.device_id)
+                # Проверяем, что данные получены корректно
+                if result is None:
+                    _LOGGER.debug("Не удалось получить режимы работы входов модуля")
+                    self.disconnected()
+                    return
+
+                result0 = await self._hub.read_holding_register_uint16(self.entry_trigger_counter_0_addr, 1, self.device_id)
+                # Проверяем, что данные получены корректно
+                if result0 is None:
+                    _LOGGER.debug("Не удалось получить режимы работы входа 0 модуля")
+                    self.disconnected()
+                    return
+
+                self._entry_trigger_count = result0 + result
+
                 # Если данные получены успешно, считаем что подключение активно
                 self.connected()
-                self._states = result
+
+
         except TimeoutError:
             _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
             # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
@@ -200,7 +226,7 @@ class WBMr(WBSmart, WBMRRegisters):
                 self._status_outputs_when_power_applied = result[0]
 
                 # Режимы работы входов модуля
-                result = await self._hub.read_holding_register_uint16(self.input_mode_addr, self.relay_count, self.device_id)
+                result = await self._hub.read_holding_register_uint16(self.input_mode_addr, self.input_count-1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result is None:
                     _LOGGER.debug("Не удалось получить режимы работы входов модуля")
@@ -257,6 +283,10 @@ class WBMr(WBSmart, WBMRRegisters):
         else:
             return self.INPUT_MODE_VALUES[key]
 
+    def get_entry_trigger_count(self, channel: int):
+        _LOGGER.debug(f"get_entry_trigger_count: channel={channel} count={self._entry_trigger_count[channel]}")
+        return self._entry_trigger_count[channel]
+
     def get_status_outputs_when_power_applied(self):
         return self.STATUS_OUTPUTS_WHEN_POWER_APPLIED[self._status_outputs_when_power_applied]
 
@@ -277,25 +307,15 @@ class WBMr(WBSmart, WBMRRegisters):
         # Возвращает первый найденный ключ
         option_key = next((k for k, v in dict_values.items() if v == option), None)
 
-        self._input_mode[channel] = option_key
-        await self.write_holding_register(address, option_key)
-        # task1 = asyncio.create_task(self.write_holding_register(address, option_key))
-        # successfully = await task1
-        # if (successfully):
-        #     self._input_mode[channel] = option_key
-
+        if (await self.write_holding_register(address, option_key)):
+            self._input_mode[channel] = option_key
 
     async def set_status_outputs_when_power_applied(self, option: str):
         # Возвращает первый найденный ключ
         option_key = next((k for k, v in self.STATUS_OUTPUTS_WHEN_POWER_APPLIED.items() if v == option), None)
 
-        self._status_outputs_when_power_applied = option_key
-        await self.write_holding_register(self.status_outputs_when_power_applied_addr, option_key)
-
-        # task1 = asyncio.create_task(self.write_holding_register(self.status_outputs_when_power_applied_addr, option_key))
-        # successfully = await task1
-        # if (successfully):
-        #     self._status_outputs_when_power_applied = option_key
+        if (await self.write_holding_register(self.status_outputs_when_power_applied_addr, option_key)):
+            self._status_outputs_when_power_applied = option_key
 
     def get_attr_options(self, select_type:str, channel:int | None = None):
         _LOGGER.debug(f"get_attr_options:  select_type={select_type}; channel={channel}")

@@ -12,7 +12,7 @@ from .device import WBMr
 PLATFORMS = [
     #"binary_sensor",
     "select",
-    #"sensor",
+    "sensor",
     "switch",
 ]
 

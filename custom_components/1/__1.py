@@ -136,7 +136,7 @@ async def read_holding():
     print("Readout started")
 
     #result = client.read_discrete_inputs(0)
-    address=9
+    address=32
     count_=6
     #await client.write_coils(address, [True,True,True,True,True,True], device_id=116)
     # Добавляем небольшую задержку после подключения для стабилизации
@@ -164,4 +164,4 @@ async def read_holding():
 
     client.close()
 
-asyncio.run(read_coils())
+asyncio.run(read_holding())
