@@ -47,8 +47,10 @@ class EntryTriggerCounter(SensorEntity):
         self._device = device
         self._channel = channel
 
-        self._attr_unique_id = f"{device.name}_count_sensor_{self._channel}"
+        # self._attr_has_entity_name = True
+        self._attr_unique_id = f"{device.name.lower()}_trigger_counter_{self._channel}"
         self._attr_name = f"Счетчик срабатываний входа {self._channel} канал"
+        self.entity_id = f"sensor.{DOMAIN.lower()}_{self._attr_unique_id}"
         #self._attr_device_class = SensorDeviceClass.BATTERY
         #self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_entity_category = EntityCategory.DIAGNOSTIC

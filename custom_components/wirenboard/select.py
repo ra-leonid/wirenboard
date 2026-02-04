@@ -62,22 +62,22 @@ async def async_setup_entry(HomeAssistant, config_entry, async_add_entities):
     # Задержка повторного включения (x0.1, с)
 
 
-SCAN_INTERVAL = timedelta(seconds=15)
+#SCAN_INTERVAL = timedelta(seconds=15)
 class wb_input_mode(SelectEntity):
     _attr_current_option: str | None = None
     _attr_entity_registry_enabled_default = True
     _attr_icon = "mdi:button-pointer"
 
     def __init__(self, device: WBMr, channel: int):
-        self._attr_name = f"Режим работы входа {channel}"
-        # self._attr_unique_id = self._attr_name
-        self._attr_unique_id = f"{device.name}_select_{channel}"
-        self.entity_id = f"{device.name}.select.{channel}"
-        self._attr_available = True
-        self._attr_entity_category = EntityCategory.CONFIG  # DIAGNOSTIC
-
         self._device = device
         self._channel = channel
+
+        # self._attr_has_entity_name = True
+        self._attr_unique_id = f"{device.name.lower()}_input_mode_{self._channel}"
+        self._attr_name = f"Режим работы входа {self._channel}"
+        self.entity_id = f"select.{DOMAIN.lower()}_{self._attr_unique_id}"
+        self._attr_available = True
+        self._attr_entity_category = EntityCategory.CONFIG  # DIAGNOSTIC
 
         self._attr_options = self._device.get_attr_options("input_mode", self._channel)
         self.current_option = self.get_current_option()
@@ -105,14 +105,14 @@ class status_outputs_when_power_applied(SelectEntity):
     _attr_icon = "mdi:list-status"
 
     def __init__(self, device: WBMr):
+        self._device = device
+
+        self._attr_has_entity_name = True
+        self._attr_unique_id = f"{device.name.lower()}_status_outputs_when_power_applied"
         self._attr_name = f"Состояния выходов при подаче питания"
-        # self._attr_unique_id = self._attr_name
-        self._attr_unique_id = f"{device.name}_select_status_outputs_when_power_applied"
-        self.entity_id = f"{device.name}.select.status_outputs_when_power_applied"
+        self.entity_id = f"select.{DOMAIN.lower()}_{self._attr_unique_id}"
         self._attr_available = True
         self._attr_entity_category = EntityCategory.CONFIG  # DIAGNOSTIC
-
-        self._device = device
 
         self._attr_options = self._device.get_attr_options("status_outputs_when_power_applied")
         self.current_option = self.get_current_option()

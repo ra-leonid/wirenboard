@@ -32,7 +32,8 @@ class WBSmart:
     # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
 
     def __del__(self):
-        self._hub.disconnect()
+        asyncio.run(self._hub.disconnect())
+        _LOGGER.warning(f"Устройство {self.name} удалено. Отключено по Modbus")
 
     async def _check_and_reconnect(self):
         """Проверяет подключение и пытается переподключиться при необходимости"""
@@ -43,14 +44,14 @@ class WBSmart:
                 return True
             
             # Если не подключен, пытаемся подключиться
-            _LOGGER.info(f"Попытка подключения к устройству {self.__name}")
+            _LOGGER.warning(f"Попытка подключения к устройству {self.__name}")
             await self._hub.connect()
             
             # Добавляем небольшую задержку после подключения для стабилизации
             await asyncio.sleep(0.2)
 
             self.connected()
-            _LOGGER.info(f"Успешно подключились к устройству {self.__name}")
+            _LOGGER.warning(f"Успешно подключились к устройству {self.__name}")
             return True
         except Exception as e:
             _LOGGER.error(f"Не удалось подключиться к устройству {self.__name}: {e}")
@@ -142,7 +143,9 @@ class WBMr(WBSmart, WBMRRegisters):
     async def update(self):
         try:
             # Проверяем подключение
-            if not await self._check_and_reconnect():
+            connecting_status = await self._check_and_reconnect()
+            _LOGGER.debug(f"Metod update. connecting_status = {connecting_status}")
+            if not connecting_status:
                 _LOGGER.debug(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
                 self.disconnected()
                 return
@@ -152,7 +155,7 @@ class WBMr(WBSmart, WBMRRegisters):
 
                 # Проверяем, что данные получены корректно
                 if result is None:
-                    _LOGGER.debug("Не удалось получить состояния реле")
+                    _LOGGER.debug(f"Не удалось получить состояния реле {self.name}")
                     self.disconnected()
                     return
 
@@ -162,14 +165,14 @@ class WBMr(WBSmart, WBMRRegisters):
                 result = await self._hub.read_holding_register_uint16(self.entry_trigger_counter_addr, self.input_count-1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result is None:
-                    _LOGGER.debug("Не удалось получить режимы работы входов модуля")
+                    _LOGGER.debug(f"Не удалось получить счетчики срабатываний входов модуля {self.name}")
                     self.disconnected()
                     return
 
                 result0 = await self._hub.read_holding_register_uint16(self.entry_trigger_counter_0_addr, 1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result0 is None:
-                    _LOGGER.debug("Не удалось получить режимы работы входа 0 модуля")
+                    _LOGGER.debug(f"Не удалось получить режимы работы входа 0 модуля {self.name}")
                     self.disconnected()
                     return
 
@@ -208,8 +211,9 @@ class WBMr(WBSmart, WBMRRegisters):
 
     async def update_setting(self):
         try:
-            # Проверяем подключение
-            if not await self._check_and_reconnect():
+            connecting_status = await self._check_and_reconnect()
+            _LOGGER.debug(f"Metod update_setting. connecting_status = {connecting_status}")
+            if not connecting_status:
                 _LOGGER.debug(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
                 self.disconnected()
                 return
@@ -220,7 +224,7 @@ class WBMr(WBSmart, WBMRRegisters):
                 result = await self._hub.read_holding_register_uint16(self.status_outputs_when_power_applied_addr, 1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result is None:
-                    _LOGGER.debug("Не удалось получить 'Состояние выходов при подаче питания'")
+                    _LOGGER.debug(f"Не удалось получить 'Состояние выходов при подаче питания' модуля {self.name}")
                     self.disconnected()
                     return
                 self._status_outputs_when_power_applied = result[0]
@@ -229,14 +233,14 @@ class WBMr(WBSmart, WBMRRegisters):
                 result = await self._hub.read_holding_register_uint16(self.input_mode_addr, self.input_count-1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result is None:
-                    _LOGGER.debug("Не удалось получить режимы работы входов модуля")
+                    _LOGGER.debug(f"Не удалось получить режимы работы входов модуля {self.name}")
                     self.disconnected()
                     return
 
                 result0 = await self._hub.read_holding_register_uint16(self.input_mode_0_addr, 1, self.device_id)
                 # Проверяем, что данные получены корректно
                 if result0 is None:
-                    _LOGGER.debug("Не удалось получить режимы работы входа 0 модуля")
+                    _LOGGER.debug(f"Не удалось получить режимы работы входа 0 модуля {self.name}")
                     self.disconnected()
                     return
 

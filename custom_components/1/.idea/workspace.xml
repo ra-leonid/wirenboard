@@ -5,11 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="392aaaee-0b0b-4754-97af-433d31775ddc" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../wirenboard/sensor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/__1.py" beforeDir="false" afterPath="$PROJECT_DIR$/__1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../wirenboard/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/device.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/device.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/registers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/registers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/select.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/select.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../wirenboard/sensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/sensor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/switch.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/switch.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -33,7 +32,7 @@
     "Python.__1.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "G:/home_assistant/wirenboard/custom_components/1",
+    "last_opened_file_path": "G:/home_assistant/YandexStation/custom_components/yandex_station",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -60,6 +59,7 @@
       <updated>1770043221025</updated>
       <workItem from="1770043222129" duration="3494000" />
       <workItem from="1770150401512" duration="596000" />
+      <workItem from="1770174293993" duration="617000" />
     </task>
     <servers />
   </component>

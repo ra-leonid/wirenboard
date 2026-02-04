@@ -27,12 +27,13 @@ async def async_setup_entry(HomeAssistant, config_entry, async_add_entities):
 
 class wb_switch(SwitchEntity):
     def __init__(self, device: WBMr, channel: int):
-        self._attr_has_entity_name = True
-        self._attr_name = f"Реле {channel+1}"
         self._device = device
-        #self._attr_unique_id = self._attr_name
-        self._attr_unique_id = f"{device.name}_switch_{channel+1}"
         self._channel = channel
+
+        # self._attr_has_entity_name = True
+        self._attr_unique_id = f"{device.name.lower()}_ch_{self._channel+1}"
+        self._attr_name = f"Реле {channel+1}"
+        self.entity_id = f"switch.{DOMAIN.lower()}_{self._attr_unique_id}"
         self._attr_is_on = self._device.get_switch_status(self._channel)
         #self._attr_entity_category = EntityCategory.CONFIG  # DIAGNOSTIC
 

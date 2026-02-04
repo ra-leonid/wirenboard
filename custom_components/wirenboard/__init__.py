@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-# import logging
-import asyncio
+import logging
+#import asyncio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.entity import Entity
+#from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
 from .device import WBMr
@@ -16,7 +16,7 @@ PLATFORMS = [
     "switch",
 ]
 
-# _LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
@@ -29,6 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_id = entry.data["device_id"]
     device_type = entry.data["device_type"]
     device = WBMr(hass, host_ip, host_port, device_type, device_id)
+    _LOGGER.warning(f"Создано устройство {device.name}")
     try:
         await device.update()
         await device.update_setting()
