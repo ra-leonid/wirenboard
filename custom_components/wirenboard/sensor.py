@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import logging
+from homeassistant.helpers.entity import DeviceInfo
 
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.components.sensor import (
@@ -61,9 +62,19 @@ class EntryTriggerCounter(SensorEntity):
 
     @property
     def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._device.name)}
-        }
+        # return {
+        #     "identifiers": {(DOMAIN, self._device.name)}
+        # }
+        short_name = self._device.name
+        return DeviceInfo(
+            identifiers={
+                (DOMAIN, f"{short_name}-{self._device.device_id}")
+            },
+            name = f"{short_name}-{self._device.device_id}",
+            model = self._device.model,
+            sw_version = self._device.firmware,
+            manufacturer = self._device.manufacturer
+        )
 
     @property
     def icon(self):

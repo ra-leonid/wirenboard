@@ -4,16 +4,15 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Optional
 
-from pymodbus.client import  AsyncModbusTcpClient
-from pymodbus.exceptions import ModbusException
+# from pymodbus.client import  AsyncModbusTcpClient
+# from pymodbus.exceptions import ModbusException
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow, ConfigFlowResult
 from homeassistant.core import callback
 from homeassistant import config_entries
-from homeassistant.components.modbus import modbus
+# from homeassistant.components.modbus import modbus
 
 from .const import DOMAIN
-from .registers import WBMRRegisters
 
 STEP_TCP_DATA_SCHEMA = vol.Schema(
     {
@@ -40,8 +39,6 @@ class WBSmartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: Optional[dict(str, Any)] = None):
         """Invoke when a user initiates a flow via the user interface."""
         return await self.async_step_tcp(user_input)
-
-
 
     async def async_step_tcp(self, user_input: Optional[dict(str, Any)] = None):
         """Configure ModBus TCP entry."""
@@ -74,6 +71,7 @@ class WBSmartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> OptionsFlowHandler:
         """Create the options flow."""
         return OptionsFlowHandler()
+
 
 class OptionsFlowHandler(OptionsFlow):
     async def async_step_init(

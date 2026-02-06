@@ -3,85 +3,52 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.core import (HomeAssistant, callback)
+# from homeassistant.core import (HomeAssistant, callback)
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-# from .device import WBMr
+from .device import WBMr
 from .const import DOMAIN
 from .coordinator import WBCoordinator
+from .entity import WbEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 
-# Устанавливает интервал с которым устройство будет опрашиваться
-#SCAN_INTERVAL = timedelta(seconds=5)
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    switches = []
-    # device: WBMr = hass.data[DOMAIN][config_entry.entry_id]
-    #
-    # for i in range(device.relay_count):
-    #     switches.append(wb_switch(device, i))
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    for i in range(coordinator._device.relay_count):
-        switches.append(wb_switch(hass, coordinator, i))
+    objects = []
+    coordinator: WBCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    device: WBMr = coordinator.device
+    for obj in device.switches:
+        for i in range(obj.count):
+            objects.append(WbSwitch(hass, coordinator, obj, i))
 
-        _LOGGER.info(f"📊 СОЗДАН {i} ПЕРЕКЛЮЧАТЕЛЬ")
+    _LOGGER.info(f"📊 СОЗДАНО {len(objects)} ПЕРЕКЛЮЧАТЕЛЕЙ")
+    async_add_entities(objects, update_before_add=False)
 
-    _LOGGER.info(f"📊 СОЗДАНО {len(switches)} ПЕРЕКЛЮЧАТЕЛЕЙ")
-    async_add_entities(switches, update_before_add=False)
-
-class wb_switch(CoordinatorEntity, SwitchEntity):
-    # def __init__(self, coordinator: WBCoordinator, channel: int):
+class WbSwitch(WbEntity, CoordinatorEntity, SwitchEntity):
     def __init__(
             self,
             hass: HomeAssistant,
             coordinator: WBCoordinator,
-            channel: int
+            obj,
+            idx: int
     ) -> None:
-        """Pass coordinator to CoordinatorEntity."""
-        super().__init__(coordinator, context=channel)
-        self._channel = channel
-        self._device = coordinator._device
+        # _LOGGER.warning(f"switch.py. ШАГ 1")
+        super().__init__(hass, obj, idx)
+        CoordinatorEntity.__init__(self, coordinator)
+        # _LOGGER.warning(f"switch.py. ШАГ 1")
 
-        # self._attr_has_entity_name = True
-        self._attr_unique_id = f"{self._device.name.lower()}_ch_{self._channel+1}"
-        self._attr_name = f"Реле {channel+1}"
-        self.entity_id = f"switch.{DOMAIN.lower()}_{self._attr_unique_id}"
-        self._attr_is_on = self._device.get_switch_status(self._channel)
-        #self._attr_entity_category = EntityCategory.CONFIG  # DIAGNOSTIC
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self.async_write_ha_state()
+    @property
+    def is_on(self) -> bool:
+        return self.object.get_state(self.id)
 
     async def async_turn_off(self, **kwargs):
-        """Turn the entity off."""
-        self._attr_is_on = False
-        await self._device.set_switch_status(self._channel, self._attr_is_on)
+        await self.object.set_value(self.id, False)
+        self.async_write_ha_state()
+    #         self._attr_available = True
 
     async def async_turn_on(self, **kwargs):
-        """Turn the entity on."""
-        self._attr_is_on = True
-        await self._device.set_switch_status(self._channel, self._attr_is_on)
-
-    async def async_update(self) -> None:
-        """Fetch new state data for the sensor."""
-        await self._device.update()
-        self._attr_is_on = self._device.get_switch_status(self._channel)
-        self._attr_available = self._device.is_connected
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._device.name)}
-        }
-
-    '''
-    @property
-    def icon(self):
-        if self._device.get_switch_status(self._channel):
-            return "mdi:toggle-switch-variant"
-        else:
-            return "mdi:toggle-switch-variant-off"
-'''
+        await self.object.set_value(self.id, True)
+        self.async_write_ha_state()
+#         self._attr_available = True

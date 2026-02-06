@@ -42,9 +42,9 @@ class modbus_hub:
             self.__is_connected = False
             raise ValueError(f"Не удалось подключиться к устройству: {e}")
 
-    async def disconnect(self):
+    def disconnect(self):
         if self._client.connected:
-            await self._client.close()
+            self._client.close()
         self.__is_connected = False
 
     async def read_holding_register_uint16(self, address, count, device_id:int):

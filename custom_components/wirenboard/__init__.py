@@ -12,7 +12,7 @@ from .coordinator import WBCoordinator
 
 PLATFORMS = [
     #"binary_sensor",
-    # "select",
+    "select",
     # "sensor",
     "switch",
 ]
@@ -28,20 +28,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_type = entry.data["device_type"]
 
     hass.data.setdefault(DOMAIN, {})
-    device = WBMr(hass, host_ip, host_port, device_type, device_id)
+    wb_device = WBMr(hass, host_ip, host_port, device_type, device_id)
 
-    coordinator = WBCoordinator(hass, entry, device)
+    wb_coordinator = WBCoordinator(hass, entry, wb_device)
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    hass.data[DOMAIN][entry.entry_id] = wb_coordinator
 
-    _LOGGER.warning(f"Создано устройство {device.name}")
+    _LOGGER.warning(f"Создано устройство {wb_device.name}")
 
     # Извлекает исходные данные, чтобы они у нас были при подписке на объекты
     # Если обновление завершится неудачно, async_config_entry_first_refresh поднимет ConfigEntryNotReady
     # и программа установки повторит попытку позже
     try:
-        async with async_timeout.timeout(10):
-            await coordinator.async_config_entry_first_refresh()
+        async with async_timeout.timeout(20):
+            await wb_coordinator.async_config_entry_first_refresh()
     except ValueError as ex:
         raise ConfigEntryNotReady(f"Timeout while connecting {host_ip}") from ex
     hass.async_create_task(
