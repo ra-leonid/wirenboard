@@ -13,7 +13,7 @@ from .coordinator import WBCoordinator
 PLATFORMS = [
     #"binary_sensor",
     "select",
-    # "sensor",
+    "sensor",
     "switch",
 ]
 

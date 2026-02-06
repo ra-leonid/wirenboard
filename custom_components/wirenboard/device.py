@@ -32,6 +32,7 @@ class Platform(Enum):
 class RegisterType(Enum):
     coil = 1
     holding = 2
+    sensor = 3
 
 class GroupAddresses:
     def __init__(self, start_address: int, count: int):
@@ -51,13 +52,19 @@ class DeviceObjectGroup:
         start_address = kwargs["start_address"]
         count = kwargs["count"]
 
-        self.__start_id = 1
+        self.__start_id = kwargs.get("start_id", 0)
         self.__group_addresses = []
         self.__addresses = []
         self._register_statuses = [None] * count
         self.__last_date = 0
 
         self.add_addresses(0, start_address, count)
+
+        if 'address0' in kwargs:
+            self.add_addresses(0, kwargs["address0"], 1)
+            self._register_statuses.append(None)
+        # else:
+        #     _LOGGER.warning(f"device.py; {self.name}. address0 НЕ НАЙДЕН!")
 
     @property
     def count(self):
@@ -153,16 +160,9 @@ class DeviceObjectGroup:
 class SelectDeviceObjectGroup(DeviceObjectGroup):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.__start_id = 0
 
         self.__select_values = kwargs["select_values"]
         self.__select_values0 = kwargs.get("select_values0", self.__select_values)
-
-        if 'address0' in kwargs:
-            self.add_addresses(0, kwargs["address0"], 1)
-            self._register_statuses.append(None)
-        # else:
-        #     _LOGGER.warning(f"device.py; {self.name}. address0 НЕ НАЙДЕН!")
 
     def get_state(self, index: int):
         # key = super().get_state(index)
@@ -176,23 +176,21 @@ class SelectDeviceObjectGroup(DeviceObjectGroup):
         else:
             return self.__select_values[key]
 
-    @property
-    def start_id(self):
-        return self.__start_id
+    def get_attr_options(self, index:int):
+        if index:
+            return list(self.__select_values.values())
+        else:
+            return list(self.__select_values0.values())
 
-    def get_attr_options(self):
-        return list(self.__select_values.values())
 
     async def set_value(self, index:int, value):
-        if index == 0:
-            dict_values = self.__select_values0
-        else:
+        if index:
             dict_values = self.__select_values
-        _LOGGER.warning(f"device.py; set_value({index}, {value})")
+        else:
+            dict_values = self.__select_values0
 
         # Возвращает первый найденный ключ
         option_key = next((k for k, v in dict_values.items() if v == value), None)
-        _LOGGER.warning(f"device.py select set_value; option_key={option_key}")
         self._set_status(index, option_key)
 
         await self.device.set_register_value(self.register_type,self.address(index),option_key)
@@ -441,6 +439,17 @@ class WBSmart:
                 _LOGGER.debug(f"device.py switches шаг 3")
         return selects
 
+    @property
+    def sensors(self):
+        _LOGGER.debug("device.py selects шаг 1")
+        selects = []
+        for obj in self.objects:
+            _LOGGER.debug(f"device.py selects шаг 2 obj={obj}")
+            if obj.platform == Platform.sensor:
+                selects.append(obj)
+                _LOGGER.debug(f"device.py switches шаг 3")
+        return selects
+
 class WBMr(WBSmart):
     def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type: str,
                  device_id: int) -> None:
@@ -451,6 +460,7 @@ class WBMr(WBSmart):
             DeviceObjectGroup(device=self,
                                 name="Реле",
                                 # name_id="switch",
+                                start_id=1,
                                 platform=Platform.switch,
                                 register_type=RegisterType.coil,
                                 start_address=0,
@@ -477,6 +487,15 @@ class WBMr(WBSmart):
                                     # update_interval=5,
                                     select_values=STATUS_OUTPUTS_WHEN_POWER_APPLIED,
                                     entity_category=EntityCategory.CONFIG),
+            DeviceObjectGroup(device=self,
+                              name="Счетчик срабатываний входа",
+                              name_id="trigger_counter",
+                              platform=Platform.sensor,
+                              register_type=RegisterType.holding,
+                              start_address=32,
+                              count=6,
+                              address0=39,
+                              update_interval=1),
         ]
 
         # _LOGGER.debug(f"device.py WBMr __init__ self.objects={self.objects}")
