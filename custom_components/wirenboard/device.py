@@ -28,6 +28,7 @@ class Platform(Enum):
     sensor = 2
     select = 3
     switch = 4
+    number = 5
 
 class RegisterType(Enum):
     coil = 1
@@ -195,6 +196,36 @@ class SelectDeviceObjectGroup(DeviceObjectGroup):
 
         await self.device.set_register_value(self.register_type,self.address(index),option_key)
 
+class InputDeviceObjectGroup(DeviceObjectGroup):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__min_val = kwargs["min_val"]
+        self.__max_val = kwargs["max_val"]
+        self.__mode = kwargs["mode"]
+        self.__step = kwargs["step"]
+        self.__scale = kwargs["scale"]
+
+    @property
+    def min_val(self):
+        return self.__min_val
+
+    @property
+    def max_val(self):
+        return self.__max_val
+
+    @property
+    def mode(self):
+        return self.__mode
+
+    @property
+    def step(self):
+        return self.__step
+
+    @property
+    def scale(self):
+        return self.__scale
+
+
 class WBSmart:
     def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_id: int) ->None:
         self.__name = ""
@@ -323,7 +354,7 @@ class WBSmart:
             return False
         return True
 
-    async def async_write_holding_register(self, address:int, value:int):
+    async def async_write_holding_register(self, address:int, value):
         try:
             async with async_timeout.timeout(5):
                 _LOGGER.debug(f"Запись в holding регистр {address} устройства {self.device_id} значения {value}")
@@ -471,6 +502,19 @@ class WBSmart:
                 _LOGGER.debug(f"device.py switches шаг 3")
         return selects
 
+    def filtre_objects(self, platform:Platform | None = None):
+        _LOGGER.debug("device.py filtre_objects шаг 1")
+        selects = []
+        if platform is None:
+            return self.objects.copy()
+        else:
+            for obj in self.objects:
+                _LOGGER.debug(f"device.py filtre_objects шаг 2 obj={obj}")
+                if obj.platform == platform:
+                    selects.append(obj)
+                    _LOGGER.debug(f"device.py filtre_objects шаг 3")
+            return selects
+
 class WBMr(WBSmart):
     def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_id: int) -> None:
 
@@ -512,10 +556,28 @@ class WBMr(WBSmart):
                               name_id="trigger_counter",
                               platform=Platform.sensor,
                               register_type=RegisterType.holding,
+                              entity_category=EntityCategory.DIAGNOSTIC,
                               start_address=32,
                               count=6,
                               address0=39,
                               update_interval=1),
+            InputDeviceObjectGroup(device=self,
+                              name="Время подавления дребезга",
+                              name_id="debounce_time",
+                              platform=Platform.number,
+                              register_type=RegisterType.holding,
+                              entity_category=EntityCategory.CONFIG,
+                              start_address=20,
+                              count=6,
+                              # update_interval=1,
+                              address0=27,
+                              min_val=0,
+                              max_val=2000,
+                              mode="box", #box or slider
+                              step=1,
+                              scale=1,
+
+        ),
         ]
 
         # _LOGGER.debug(f"device.py WBMr __init__ self.objects={self.objects}")

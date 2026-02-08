@@ -17,13 +17,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     device: WBMr = coordinator.device
     for obj in device.selects:
         for i in range(obj.count):
-            objects.append(StatusOutputsWhenPowerApplied(hass, coordinator, obj, i))
+            objects.append(WbSelect(hass, coordinator, obj, i))
 
     _LOGGER.info(f"📊 СОЗДАНО {len(objects)} ПОЛЕЙ ВЫБОРА")
     async_add_entities(objects, update_before_add=False)
 
 
-class StatusOutputsWhenPowerApplied(WbEntity, CoordinatorEntity, SelectEntity):
+class WbSelect(WbEntity, CoordinatorEntity, SelectEntity):
     _attr_current_option: str | None = None
     _attr_entity_registry_enabled_default = True
     _attr_icon = "mdi:list-status"

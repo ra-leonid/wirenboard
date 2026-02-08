@@ -48,13 +48,15 @@ class WbEntity(Entity):
         identifiers = {
             (DOMAIN, f"{self.__device.name}_{self.__device.serial_number}")
         }
-        _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {self.__device.name}, model = {self.__device.model}, "
+        _LOGGER.debug(f"DeviceInfo(identifiers={identifiers}, name = {self.__device.name}, model = {self.__device.model}, "
                      f"sw_version = {self.__device.firmware}, manufacturer = {self.__device.manufacturer}")
 
         return DeviceInfo(
             identifiers=identifiers,
             name = self.__device.name,
             model = self.__device.model,
+            model_id = self.__device.device_id,
+            serial_number = self.__device.serial_number,
             sw_version = self.__device.firmware,
             manufacturer = self.__device.manufacturer
         )
