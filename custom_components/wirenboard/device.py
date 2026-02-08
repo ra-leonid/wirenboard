@@ -339,7 +339,7 @@ class WBSmart:
             return False
         return True
 
-    async def update_info(self):
+    async def update(self, setup=False):
         try:
             # Проверяем подключение
             connecting_status = await self.async_check_and_reconnect()
@@ -351,51 +351,15 @@ class WBSmart:
                 return
 
             async with async_timeout.timeout(15):
-                _LOGGER.info(f"Читаем с устройства {self.device_id} модель устройства")
-                self.__model = await self._hub.async_read_holding_register_string(200, 20, self.device_id)
-                self.__bootloader = await self._hub.async_read_holding_register_string(330, 7, self.device_id)
-                self.__firmware = await self._hub.async_read_holding_register_string(250, 16, self.device_id)
-                self.__serial_number = await self._hub.async_read_holding_register_uint32(270, 2, self.device_id)
-                self.connected()
-        except TimeoutError:
-                _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
-                # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-                self.reset_connection_attempts()
-                self.disconnected()
-                return
-        except ModbusIOException as value_error:
-            _LOGGER.warning(f"ModbusIOException for {self.name}: {value_error.string}")
-            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-            self.reset_connection_attempts()
-            self.disconnected()
-            return
-        except ModbusException as value_error:
-            _LOGGER.warning(f"ModbusException for {self.name}: {value_error.string}")
-            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
-            self.reset_connection_attempts()
-            self.disconnected()
-            return
-        except InvalidStateError as ex:
-            _LOGGER.error(f"InvalidStateError Exceptions for {self.name}")
-            self.disconnected()
-            return
-        except Exception as e:
-            _LOGGER.error(f"Неожиданная ошибка при обновлении {self.name}: {e}")
-            self.disconnected()
-            return
+                if setup:
+                    self.__model = await self._hub.async_read_holding_register_string(200, 20, self.device_id)
+                    self.__bootloader = await self._hub.async_read_holding_register_string(330, 7, self.device_id)
+                    self.__firmware = await self._hub.async_read_holding_register_string(250, 16, self.device_id)
+                    self.__serial_number = await self._hub.async_read_holding_register_uint32(270, 2, self.device_id)
+                    self.__name = f"{self.__model}_{self.__device_id}"
+                    _LOGGER.info(f"model={self.__model}; bootloader={self.__bootloader}; firmware={self.__firmware}; "
+                                 f"S/N={self.__serial_number}")
 
-    async def update(self):
-        try:
-            # Проверяем подключение
-            connecting_status = await self.async_check_and_reconnect()
-            # TODO Все warning в методе вернуть на debug
-            # _LOGGER.debug(f"Metod update. connecting_status = {connecting_status}")
-            if not connecting_status:
-                _LOGGER.error(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
-                self.disconnected()
-                return
-
-            async with async_timeout.timeout(15):
                 for obj in self.objects:
                     passed = time.monotonic() - obj.last_date
                     _LOGGER.debug(f"self.name={self.name}; obj.update_interval={obj.update_interval}; obj.last_date={obj.last_date}; passed={passed}")

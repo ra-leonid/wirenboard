@@ -21,7 +21,7 @@ class WbEntity(Entity):
         else:
             prefix_channel = f"_{obj.name_id}_{channel}"
 
-        self._attr_unique_id = f"{self.__device.name.lower()}{prefix_channel}"
+        self._attr_unique_id = f"{self.__device.name}_{self.__device.serial_number}{prefix_channel}"
         self.entity_id = f"{obj.platform.name}.{DOMAIN.lower()}_{self._attr_unique_id}"
         self._attr_name = f"{obj.name} {channel}".strip()
 
@@ -45,22 +45,16 @@ class WbEntity(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
-        short_name = self.__device.name
         identifiers = {
-            (DOMAIN, f"{short_name}-{self.__device.serial_number}")
+            (DOMAIN, f"{self.__device.name}_{self.__device.serial_number}")
         }
-        name = f"{short_name}-{self.__device.device_id}",
-        model = self.__device.model,
-        sw_version = self.__device.firmware,
-        manufacturer = self.__device.manufacturer
-
-        _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {name}, model = {model}, "
-                      f"sw_version = {sw_version}, manufacturer = {manufacturer}")
+        _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {self.__device.name}, model = {self.__device.model}, "
+                     f"sw_version = {self.__device.firmware}, manufacturer = {self.__device.manufacturer}")
 
         return DeviceInfo(
             identifiers=identifiers,
-            name = name,
-            model = model,
-            sw_version = sw_version,
-            manufacturer = manufacturer
+            name = self.__device.name,
+            model = self.__device.model,
+            sw_version = self.__device.firmware,
+            manufacturer = self.__device.manufacturer
         )

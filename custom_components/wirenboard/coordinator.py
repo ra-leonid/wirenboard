@@ -38,7 +38,8 @@ class WBCoordinator(DataUpdateCoordinator):
         return self.__device
 
     async def _async_setup(self):
-        await self.__device.update()
+        # await self.__device.update_info()
+        await self.__device.update(True)
 
     async def _async_update_data(self):
         await self.__device.update()
