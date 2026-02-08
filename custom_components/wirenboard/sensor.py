@@ -34,7 +34,7 @@ class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
             obj,
             idx: int
     ) -> None:
-        # _LOGGER.warning(f"select.py. ШАГ 1")
+        _LOGGER.debug(f"select.py. ШАГ 1")
         super().__init__(hass, obj, idx)
         CoordinatorEntity.__init__(self, coordinator)
 

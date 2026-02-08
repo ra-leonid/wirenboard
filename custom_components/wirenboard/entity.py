@@ -1,9 +1,12 @@
 from __future__ import annotations
+import logging
 
 from homeassistant.helpers.entity import DeviceInfo
 from .const import DOMAIN
 from homeassistant.core import (HomeAssistant, callback)
 from homeassistant.helpers.entity import Entity
+
+_LOGGER = logging.getLogger(__name__)
 
 class WbEntity(Entity):
     def __init__(self, hass: HomeAssistant, obj, idx: int | None) -> None:
@@ -36,33 +39,28 @@ class WbEntity(Entity):
 
     @callback
     def _handle_coordinator_update(self) -> None:
+        self._attr_available = self.__device.is_connected
         self.async_write_ha_state()
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         short_name = self.__device.name
+        identifiers = {
+            (DOMAIN, f"{short_name}-{self.__device.serial_number}")
+        }
+        name = f"{short_name}-{self.__device.device_id}",
+        model = self.__device.model,
+        sw_version = self.__device.firmware,
+        manufacturer = self.__device.manufacturer
+
+        _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {name}, model = {model}, "
+                      f"sw_version = {sw_version}, manufacturer = {manufacturer}")
+
         return DeviceInfo(
-            identifiers={
-                (DOMAIN, f"{short_name}-{self.__device.device_id}")
-            },
-            name = f"{short_name}-{self.__device.device_id}",
-            model = self.__device.model,
-            sw_version = self.__device.firmware,
-            manufacturer = self.__device.manufacturer
+            identifiers=identifiers,
+            name = name,
+            model = model,
+            sw_version = sw_version,
+            manufacturer = manufacturer
         )
-    # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
-
-
-
-    #
-    # @property
-    # def name(self) -> str:
-    #     """Return the display name of this light."""
-    #     return self._name
-    #
-    #
-    # @property
-    # def unique_id(self) -> str:
-    #     """Return the display name of this light."""
-    #     return self._unique_id

@@ -12,7 +12,7 @@ from homeassistant.helpers.entity import EntityCategory
 from pymodbus import ModbusException
 from pymodbus.exceptions import ModbusIOException
 
-from .hub import modbus_hub
+from .hub import async_modbus_hub
 # from .registers import WBMRRegisters
 from .const import (
 INPUT_MODE_VALUES,
@@ -64,7 +64,7 @@ class DeviceObjectGroup:
             self.add_addresses(0, kwargs["address0"], 1)
             self._register_statuses.append(None)
         # else:
-        #     _LOGGER.warning(f"device.py; {self.name}. address0 НЕ НАЙДЕН!")
+        #     _LOGGER.debug(f"device.py; {self.name}. address0 НЕ НАЙДЕН!")
 
     @property
     def count(self):
@@ -196,14 +196,14 @@ class SelectDeviceObjectGroup(DeviceObjectGroup):
         await self.device.set_register_value(self.register_type,self.address(index),option_key)
 
 class WBSmart:
-    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type:str, device_id: int) ->None:
-        self.__device_type = device_type.replace("-", "_")
+    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_id: int) ->None:
+        self.__name = ""
+        self.__model = ""
+        self.__firmware = ""
+        self.__serial_number = ""
+        self.__bootloader = ""
         self.__device_id = device_id
-        self.__name = f"{self.__device_type}_{self.__device_id}"
         self.__hass = hass
-
-        self._hub = modbus_hub(hass=hass, host=host_ip, port=host_port)
-
         self.objects = []
 
         # Флаг для отслеживания состояния подключения
@@ -211,7 +211,26 @@ class WBSmart:
         self.__connection_attempts = 0
         self.__is_connected = False
 
+        self._hub = async_modbus_hub(hass=hass, host=host_ip, port=host_port)
+
+        # asyncio.create_task(self.update_info())
+        # try:
+        #     # Get the running event loop
+        #     loop = asyncio.get_running_loop()
+        #     # Run the async function within the existing loop
+        #     loop.run_until_complete(self.update_info())
+        # except RuntimeError:
+        #     # Handle cases where no loop is running (e.g., a simple script)
+        #     asyncio.run(self.update_info())
+
+        self.__name = f"{self.__model}_{self.__device_id}"
+
     # TODO реализовать вывод информации об устройстве "https://selectel.ru/blog/ha-karadio/" def device_info
+    # @classmethod
+    # async def create(cls, param):
+    #     # Асинхронная инициализация
+    #     await update_info()
+    #     return cls(data)
 
     def __del__(self):
         self._hub.disconnect()
@@ -219,35 +238,64 @@ class WBSmart:
 
     @property
     def model(self) -> str:
-        # model_bytes = self.read_inputs(200, 6)
-        # return "".join(map(chr, model_bytes))
-        return "wb-mr6c"
+        return self.__model
 
     @property
     def firmware(self) -> str:
-        # firmware_bytes = self.read_inputs(250, 15)
-        # bootloader_bytes = self.read_inputs(330, 5)
-        # firmware = "".join(map(chr, firmware_bytes))
-        # bootloader = "".join(map(chr, bootloader_bytes))
-        # return firmware + " (bootloader " + bootloader + ")"
-        return "firmware111"
+        return f"{self.__firmware} ({self.__bootloader})"
+
+    @property
+    def serial_number(self) -> str:
+        return self.__serial_number
 
     @property
     def manufacturer(self) -> str:
         return "wirenboard"
 
-    async def _check_and_reconnect(self):
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def device_id(self):
+        return self.__device_id
+
+    @property
+    def is_connected(self):
+        """Возвращает состояние подключения к устройству"""
+        return self.__is_connected
+
+    @property
+    def connection_attempts(self):
+        """Возвращает состояние подключения к устройству"""
+        return self.__connection_attempts
+
+    def connected(self):
+        """Возвращает состояние подключения к устройству"""
+        self.__is_connected = True
+
+    def disconnected(self):
+        """Возвращает состояние подключения к устройству"""
+        self.__is_connected = False
+
+    def inc_connection_attempts(self):
+        self.__connection_attempts += 1
+
+    def reset_connection_attempts(self):
+        self.__connection_attempts = 0
+
+    async def async_check_and_reconnect(self):
         """Проверяет подключение и пытается переподключиться при необходимости"""
         try:
             # Простая проверка - если клиент подключен, считаем что подключение есть
             if hasattr(self._hub, '_client') and self._hub._client.connected:
                 self.connected()
                 return True
-            
+
             # Если не подключен, пытаемся подключиться
             _LOGGER.debug(f"Попытка подключения к устройству {self.__name}")
             await self._hub.connect()
-            
+
             # Добавляем небольшую задержку после подключения для стабилизации
             await asyncio.sleep(0.2)
 
@@ -259,47 +307,11 @@ class WBSmart:
             self.disconnected()
             return False
 
-    @property
-    def name(self):
-        return self.__name
-
-    @property
-    def device_type(self):
-        return self.__device_type
-
-    @property
-    def device_id(self):
-        return self.__device_id
-
-    @property
-    def is_connected(self):
-        """Возвращает состояние подключения к устройству"""
-        return self.__is_connected
-
-    def connected(self):
-        """Возвращает состояние подключения к устройству"""
-        self.__is_connected = True
-
-    def disconnected(self):
-        """Возвращает состояние подключения к устройству"""
-        self.__is_connected = False
-
-    @property
-    def connection_attempts(self):
-        """Возвращает состояние подключения к устройству"""
-        return self.__connection_attempts
-
-    def inc_connection_attempts(self):
-        self.__connection_attempts += 1
-
-    def reset_connection_attempts(self):
-        self.__connection_attempts = 0
-
     async def write_coil_registers(self, address:int, values):
         try:
             async with async_timeout.timeout(5):
-                _LOGGER.warning(f"Запись в coil регистры {address} устройства {self.device_id} значения {values}")
-                await self._hub.write_coils(address, values, self.device_id)
+                _LOGGER.debug(f"Запись в coil регистры {address} устройства {self.device_id} значения {values}")
+                await self._hub.async_write_coils(address, values, self.device_id)
         except TimeoutError:
             _LOGGER.warning("Pulling timed out")
             return False
@@ -311,11 +323,11 @@ class WBSmart:
             return False
         return True
 
-    async def write_holding_register(self, address:int, value:int):
+    async def async_write_holding_register(self, address:int, value:int):
         try:
             async with async_timeout.timeout(5):
-                _LOGGER.warning(f"Запись в holding регистр {address} устройства {self.device_id} значения {value}")
-                await self._hub.write_holding_register(address, value, self.device_id)
+                _LOGGER.debug(f"Запись в holding регистр {address} устройства {self.device_id} значения {value}")
+                await self._hub.async_write_holding_register(address, value, self.device_id)
         except TimeoutError:
             _LOGGER.warning("Pulling timed out")
             return False
@@ -327,10 +339,55 @@ class WBSmart:
             return False
         return True
 
+    async def update_info(self):
+        try:
+            # Проверяем подключение
+            connecting_status = await self.async_check_and_reconnect()
+            # TODO Все warning в методе вернуть на debug
+            # _LOGGER.debug(f"Metod update. connecting_status = {connecting_status}")
+            if not connecting_status:
+                _LOGGER.error(f"Не удалось подключиться к устройству {self.name}, пропускаем обновление")
+                self.disconnected()
+                return
+
+            async with async_timeout.timeout(15):
+                _LOGGER.info(f"Читаем с устройства {self.device_id} модель устройства")
+                self.__model = await self._hub.async_read_holding_register_string(200, 20, self.device_id)
+                self.__bootloader = await self._hub.async_read_holding_register_string(330, 7, self.device_id)
+                self.__firmware = await self._hub.async_read_holding_register_string(250, 16, self.device_id)
+                self.__serial_number = await self._hub.async_read_holding_register_uint32(270, 2, self.device_id)
+                self.connected()
+        except TimeoutError:
+                _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
+                # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+                self.reset_connection_attempts()
+                self.disconnected()
+                return
+        except ModbusIOException as value_error:
+            _LOGGER.warning(f"ModbusIOException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except ModbusException as value_error:
+            _LOGGER.warning(f"ModbusException for {self.name}: {value_error.string}")
+            # Сбрасываем счетчик попыток, чтобы попробовать переподключиться в следующий раз
+            self.reset_connection_attempts()
+            self.disconnected()
+            return
+        except InvalidStateError as ex:
+            _LOGGER.error(f"InvalidStateError Exceptions for {self.name}")
+            self.disconnected()
+            return
+        except Exception as e:
+            _LOGGER.error(f"Неожиданная ошибка при обновлении {self.name}: {e}")
+            self.disconnected()
+            return
+
     async def update(self):
         try:
             # Проверяем подключение
-            connecting_status = await self._check_and_reconnect()
+            connecting_status = await self.async_check_and_reconnect()
             # TODO Все warning в методе вернуть на debug
             # _LOGGER.debug(f"Metod update. connecting_status = {connecting_status}")
             if not connecting_status:
@@ -341,9 +398,9 @@ class WBSmart:
             async with async_timeout.timeout(15):
                 for obj in self.objects:
                     passed = time.monotonic() - obj.last_date
-                    # _LOGGER.warning(f"self.name={self.name}; obj.update_interval={obj.update_interval}; obj.last_date={obj.last_date}; passed={passed}")
-                    # if obj.register_type == RegisterType.holding:
-                    #     _LOGGER.warning(f"obj.update_interval={obj.update_interval}; obj.last_date={obj.last_date}; passed={passed}")
+                    _LOGGER.debug(f"self.name={self.name}; obj.update_interval={obj.update_interval}; obj.last_date={obj.last_date}; passed={passed}")
+                    if obj.register_type == RegisterType.holding:
+                        _LOGGER.debug(f"obj.update_interval={obj.update_interval}; obj.last_date={obj.last_date}; passed={passed}")
 
                     if obj.update_interval == 0 and obj.last_date or obj.update_interval >= passed:
                         continue
@@ -351,9 +408,9 @@ class WBSmart:
                     match obj.register_type:
                         case RegisterType.coil:
                             for group_addr in obj.group_addresses:
-                                # _LOGGER.warning(f"Читаем с устройства {self.device_id} coil адреса {group_addr.start_address} регистров {group_addr.count}")
-                                result = await self._hub.read_coils(group_addr.start_address, group_addr.count, self.device_id)
-                                # _LOGGER.warning(f"Из coil регистров получили ответ {result}")
+                                _LOGGER.debug(f"Читаем с устройства {self.device_id} coil адреса {group_addr.start_address} регистров {group_addr.count}")
+                                result = await self._hub.async_read_coils(group_addr.start_address, group_addr.count, self.device_id)
+                                _LOGGER.debug(f"Из coil регистров получили ответ {result}")
                                 # Проверяем, что данные получены корректно
                                 if result is None:
                                     _LOGGER.error(f"Не удалось получить состояния {obj.name}")
@@ -362,11 +419,11 @@ class WBSmart:
                                     return
                                 obj.update_statuses(result, group_addr)
                         case RegisterType.holding:
-                            # _LOGGER.warning(f"STTEPPPPP 4")
+                            _LOGGER.debug(f"case RegisterType.holding 4")
                             for group_addr in obj.group_addresses:
-                                # _LOGGER.warning(f"Читаем с устройства {self.device_id} holding адреса {group_addr.start_address} регистров {group_addr.count}")
-                                result = await self._hub.read_holding_register_uint16(group_addr.start_address, group_addr.count, self.device_id)
-                                # _LOGGER.warning(f"Из holding регистров получили ответ {result}")
+                                _LOGGER.debug(f"Читаем с устройства {self.device_id} holding адреса {group_addr.start_address} регистров {group_addr.count}")
+                                result = await self._hub.async_read_holding_register(group_addr.start_address, group_addr.count, self.device_id)
+                                _LOGGER.debug(f"Из holding регистров получили ответ {result}")
                                 # Проверяем, что данные получены корректно
                                 if result is None:
                                     _LOGGER.error(f"Не удалось получить состояния {obj.name}")
@@ -405,16 +462,16 @@ class WBSmart:
             return
 
     async def set_register_value(self, register_type:RegisterType, addr: int, value):
-        _LOGGER.warning(f"set_register_value на входе register_type={register_type}; addr={addr}; value={value}")
+        _LOGGER.debug(f"set_register_value на входе register_type={register_type}; addr={addr}; value={value}")
         match register_type:
             case RegisterType.coil:
                 result = await self.write_coil_registers(addr, [value])
             case RegisterType.holding:
-                result = await self.write_holding_register(addr, value)
+                result = await self.async_write_holding_register(addr, value)
             case _:
                 result = False
 
-        _LOGGER.warning(f"set_register_value вернуло {result}")
+        _LOGGER.debug(f"set_register_value вернуло {result}")
         return result
 
     @property
@@ -451,10 +508,9 @@ class WBSmart:
         return selects
 
 class WBMr(WBSmart):
-    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_type: str,
-                 device_id: int) -> None:
+    def __init__(self, hass: HomeAssistant, host_ip: str, host_port: int, device_id: int) -> None:
 
-        super().__init__(hass, host_ip, host_port, device_type, device_id)
+        super().__init__(hass, host_ip, host_port, device_id)
         # Инициализируем атрибуты, которые используются в update()
         self.objects = [
             DeviceObjectGroup(device=self,

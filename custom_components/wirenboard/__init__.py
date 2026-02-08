@@ -25,16 +25,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     host_ip = entry.data["host_ip"]
     host_port = entry.data["host_port"]
     device_id = entry.data["device_id"]
-    device_type = entry.data["device_type"]
 
     hass.data.setdefault(DOMAIN, {})
-    wb_device = WBMr(hass, host_ip, host_port, device_type, device_id)
+    wb_device = WBMr(hass, host_ip, host_port, device_id)
 
     wb_coordinator = WBCoordinator(hass, entry, wb_device)
 
     hass.data[DOMAIN][entry.entry_id] = wb_coordinator
 
-    _LOGGER.warning(f"Создано устройство {wb_device.name}")
+    _LOGGER.info(f"Создано устройство {wb_device.name}")
 
     # Извлекает исходные данные, чтобы они у нас были при подписке на объекты
     # Если обновление завершится неудачно, async_config_entry_first_refresh поднимет ConfigEntryNotReady

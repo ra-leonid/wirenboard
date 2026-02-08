@@ -19,12 +19,11 @@ STEP_TCP_DATA_SCHEMA = vol.Schema(
         vol.Required("name", default="WB_Smart"): str,
         vol.Required("host_ip", default="192.168.0.7"): str,
         vol.Required("host_port", default=502): int,
-        vol.Required("device_type", default="wb-mr6c"): str,
         vol.Required("device_id", default=116): int,
     }
 )
 
-async def async_validate_device(port, address: str | None, device_type:int, device_id:int) -> None:
+async def async_validate_device(port, address: str | None, device_id:int) -> None:
     # Простая валидация - считаем что устройство доступно
     # Детальная проверка будет происходить при инициализации интеграции
     # TODO Реализовать проверку заполнения свойств
@@ -49,7 +48,6 @@ class WBSmartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await async_validate_device(
                     user_input["host_port"],
                     user_input["host_ip"],
-                    user_input["device_type"],
                     user_input["device_id"],
                 )
             except ValueError as error:
@@ -88,7 +86,6 @@ class OptionsFlowHandler(OptionsFlow):
                 vol.Required("name", default=self.config_entry.data["name"]): str,
                 vol.Required("host_ip", default=self.config_entry.data["host_ip"]): str,
                 vol.Required("host_port", default=self.config_entry.data["host_port"]): int,
-                vol.Required("device_type", default=self.config_entry.data["device_type"]): str,
                 vol.Required("device_id", default=self.config_entry.data["device_id"]): int,
                 vol.Optional("update_info"): bool,
             }

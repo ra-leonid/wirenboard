@@ -11,7 +11,7 @@ import asyncio
 _LOGGER = logging.getLogger(__name__)
 # pymodbus_apply_logging_config("DEBUG")
 
-class modbus_hub:
+class async_modbus_hub:
     def __init__(self, hass: HomeAssistant, host, port) -> None:
         self._host = host
         self._port = port
@@ -47,7 +47,28 @@ class modbus_hub:
             self._client.close()
         self.__is_connected = False
 
-    async def read_holding_register_uint16(self, address, count, device_id:int):
+    async def async_read_holding_register_string(self, address, count, device_id: int):
+        async with self._request_semaphore:
+            try:
+                # Проверяем подключение и переподключаемся при необходимости
+                if not self._client.connected:
+                    await self.connect()
+
+                result = await self._client.read_holding_registers(address, count=count, device_id=device_id)
+                if result.isError():
+                    _LOGGER.debug(f"Ошибка Modbus при чтении регистра {address}: {result}")
+                    return None
+
+                if result.registers:
+                    while result.registers and result.registers[-1] == 0:
+                        result.registers.pop()
+                    return "".join(map(chr, result.registers)).lower()
+                return None
+            except Exception as e:
+                _LOGGER.debug(f"Ошибка при чтении регистра {address}: {e}")
+                return None
+
+    async def async_read_holding_register(self, address, count, device_id:int):
         async with self._request_semaphore:
             try:
                 # Проверяем подключение и переподключаемся при необходимости
@@ -66,7 +87,26 @@ class modbus_hub:
                 _LOGGER.debug(f"Ошибка при чтении регистра {address}: {e}")
                 return None
 
-    async def write_holding_register(self, address, value, device_id:int) -> None:
+    async def async_read_holding_register_uint32(self, address, count, device_id: int):
+        async with self._request_semaphore:
+            try:
+                # Проверяем подключение и переподключаемся при необходимости
+                if not self._client.connected:
+                    await self.connect()
+
+                result = await self._client.read_holding_registers(address, count=count, device_id=device_id)
+                if result.isError():
+                    _LOGGER.debug(f"Ошибка Modbus при чтении регистра {address}: {result}")
+                    return None
+
+                if result.registers:
+                    return self._client.convert_from_registers(result.registers, self._client.DATATYPE.UINT32)
+                return None
+            except Exception as e:
+                _LOGGER.debug(f"Ошибка при чтении регистра {address}: {e}")
+                return None
+
+    async def async_write_holding_register(self, address, value, device_id:int) -> None:
         async with self._request_semaphore:
             try:
                 # Проверяем подключение и переподключаемся при необходимости
@@ -76,13 +116,13 @@ class modbus_hub:
                 # Используем device_id для pymodbus 3.11.1
                 result = await self._client.write_register(address, value, device_id=device_id)
                 if result.isError():
-                    _LOGGER.warning(f"Ошибка Modbus при записи значения {value} в регистр {address}: {result}")
+                    _LOGGER.error(f"Ошибка Modbus при записи значения {value} в регистр {address}: {result}")
                     raise Exception(f"Modbus write error: {result}")
             except Exception as e:
-                _LOGGER.warning(f"Ошибка при записи значения {value} в регистр {address}: {e}")
+                _LOGGER.error(f"Ошибка при записи значения {value} в регистр {address}: {e}")
                 raise
 
-    async def read_coils(self, address, count, device_id:int):
+    async def async_read_coils(self, address, count, device_id:int):
         async with self._request_semaphore:
             try:
                 # Проверяем подключение и переподключаемся при необходимости
@@ -105,10 +145,10 @@ class modbus_hub:
                 if "Not connected" in str(e) or "Connection" in str(e):
                     _LOGGER.debug(f"Ошибка подключения при чтении битов регистра {address}: {e}")
                 else:
-                    _LOGGER.warning(f"Ошибка при чтении битов регистра {address}: {e}")
+                    _LOGGER.debug(f"Ошибка при чтении битов регистра {address}: {e}")
                 return None
 
-    async def write_coils(self, address, value:list, device_id:int) -> None:
+    async def async_write_coils(self, address, value:list, device_id:int) -> None:
         async with self._request_semaphore:
             try:
                 # Проверяем подключение и переподключаемся при необходимости
@@ -118,8 +158,8 @@ class modbus_hub:
                 # Используем device_id для pymodbus 3.11.1
                 result = await self._client.write_coils(address, value, device_id=device_id)
                 if result.isError():
-                    _LOGGER.warning(f"Ошибка Modbus при записи значения {value} в регистр {address}: {result}")
+                    _LOGGER.debug(f"Ошибка Modbus при записи значения {value} в регистр {address}: {result}")
                     raise Exception(f"Modbus write error: {result}")
             except Exception as e:
-                _LOGGER.warning(f"Ошибка при записи значения {value} в регистр {address}: {e}")
+                _LOGGER.debug(f"Ошибка при записи значения {value} в регистр {address}: {e}")
                 raise

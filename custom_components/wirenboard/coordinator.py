@@ -7,6 +7,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from .device import WBSmart
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,10 +20,18 @@ class WBCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="Wirenboard coordinator",
             config_entry=config_entry,
-            update_interval=timedelta(seconds=15),
+            update_interval=timedelta(seconds=1),
             always_update=True
         )
         self.__device = device
+        self.__devices = []
+
+    @property
+    def devices(self):
+        return self.__devices
+
+    def add_device(self, device:WBSmart):
+        self.__devices.append(device)
 
     @property
     def device(self):

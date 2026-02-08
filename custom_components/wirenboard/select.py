@@ -37,8 +37,8 @@ class StatusOutputsWhenPowerApplied(WbEntity, CoordinatorEntity, SelectEntity):
         super().__init__(hass, obj, idx)
         CoordinatorEntity.__init__(self, coordinator)
 
-        self._attr_has_entity_name = True # Этого реквизита нет в классе WbEntity
-        self._attr_available = True # Этого реквизита нет в классе WbEntity
+        # self._attr_has_entity_name = True # Этого реквизита нет в классе WbEntity
+        # self._attr_available = True # Этого реквизита нет в классе WbEntity
 
         self._attr_options = obj.get_attr_options(self.id)
         self.current_option = self.get_current_option()
