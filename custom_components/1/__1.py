@@ -109,6 +109,27 @@ async def read_holding_register_bits(client, address, count, device_id:int):
         return None
 
 
+async def async_read_discrete_inputs(client, address, count, device_id:int):
+    try:
+        # Используем device_id для pymodbus 3.11.1
+        result = await client.read_discrete_inputs(address, count=count, device_id=device_id)
+        if result.isError():
+            _LOGGER.debug(f"Ошибка Modbus при чтении битов регистра {address}: {result}")
+            return None
+
+        if result.bits:
+            bits = result.bits
+            del bits[count:len(bits)]
+            return bits
+        return None
+    except Exception as e:
+        # Не логируем ошибки подключения как предупреждения, только как отладочные сообщения
+        if "Not connected" in str(e) or "Connection" in str(e):
+            _LOGGER.debug(f"Ошибка подключения при чтении битов регистра {address}: {e}")
+        else:
+            _LOGGER.debug(f"Ошибка при чтении битов регистра {address}: {e}")
+        return None
+
 async def read_coils():
     client = AsyncModbusTcpClient(
         host='192.168.0.7',
@@ -153,7 +174,7 @@ async def read_coils():
 
     client.close()
 
-async def read_holding(address, count, device_id, port):
+async def read_registers_mr(device_id, port):
     client = AsyncModbusTcpClient(
         host='192.168.0.7',
         port= port,
@@ -190,45 +211,172 @@ async def read_holding(address, count, device_id, port):
     # result1 = await read_holding_register_bits(client=client,address=address,count=count,device_id=device_id)
     # print(f"result1={result1}")
 
-    model = await read_input_registers_string(client=client, address=200, count=20, device_id=device_id)
     firmware_version = await read_input_registers_string(client=client, address=250, count=16, device_id=device_id)
     bootloader = await read_input_registers_string(client=client, address=330, count=7, device_id=device_id)
     serial_number_byte = await read_holding_register_uint16(client=client,address=270,count=2,device_id=device_id)
+    model = await read_input_registers_string(client=client, address=200, count=20, device_id=device_id)
+    v3 = await read_input_registers(client=client, address=4, count=1, device_id=device_id)
 
     print(f"model={model}")
+    print(f"model={model.replace("-", "_").lower()}")
     print(f"firmware_version={firmware_version}")
     print(f"bootloader={bootloader}")
     print(f"serial_number_byte={serial_number_byte}")
     serial_number = client.convert_from_registers(serial_number_byte, client.DATATYPE.UINT32)
     print(f"serial_number={serial_number}")
-    # print(f"UTFFFFF={client.convert_from_registers(result2, client.DATATYPE.UINT64)}")
-    # a= "".join(map(chr, result2))
-    # print(f"a={a}")
-    #
-    #
-    # print(f"UTFFFFF={client.convert_from_registers(result2, client.DATATYPE.UINT64)}")
-    # print(f"UTFFFFF={client.convert_from_registers(result2, client.DATATYPE.INT64)}")
-
-    #bits = result.bits
-    #del bits[count:len(bits)]
-    #print(f"bits={bits}")
-    '''
-    if result.isError():
-        _LOGGER.debug(f"Ошибка Modbus при чтении регистра {address}: {result}")
-
-    if result.registers:
-        print(f"registers=result.registers[0]")
-    '''
 
     client.close()
 
-    # return result2
+async def read_registers_mcm8(device_id, port):
+    client = AsyncModbusTcpClient(
+        host='192.168.0.7',
+        port= port,
+        #framer = FramerType.SOCKET,
+        retries = 5,
+        timeout = 10,
+        reconnect_delay = 2,
+    )
+
+    #connection = client.connect()
+    try:
+        await client.connect()
+    except asyncio.CancelledError:
+        _LOGGER.debug(f"Подключение к Modbus было отменено")
+        raise
+    except Exception as e:
+        _LOGGER.error(f"Ошибка подключения к Modbus: {e}")
+        raise ValueError(f"Не удалось подключиться к устройству: {e}")
+
+    inputs = await async_read_discrete_inputs(client=client, address=0, count=8, device_id=device_id)
+    # inputs_mode = await read_holding_register_bits(client=client, address=9, count=8, device_id=device_id)
+    inputs_mode1 = await read_holding_register_uint16(client=client, address=9, count=8, device_id=device_id)
+
+    print(f"inputs={inputs}")
+    print(f"inputs_mode={inputs_mode}")
+    print(f"inputs_mode1={inputs_mode1}")
+
+    client.close()
+
 # Модель устройства
 
-asyncio.run(read_holding(200,20,116, 502))
+# asyncio.run(read_registers(200,20,116, 502))
+# asyncio.run(read_registers(200,20,247, 503))
+# asyncio.run(read_registers(200,20,73, 502))
+# asyncio.run(read_registers(200,20,50, 502))
+# asyncio.run(read_registers_mr(116, 502))
 
+# asyncio.run(read_registers_mcm8(69, 502))
+
+n = 10
+my_list = list(range(n))
+print(my_list) # [0, 1, 2, ..., 9]
+
+n = 10
+keys = list(range(5, n))
+print(keys) # [0, 1, 2, ..., 9]
+
+values = [1]*len(keys)
+print(values)
+
+dictionary = dict(zip(keys, values))
+print(dictionary)
+
+my_list = [f"{i}" for i in range(1, 6)]
+print(my_list)
+
+dictionary = dict(zip(my_list, values))
+print(dictionary)
+dictionary.update({"w2":3})
+print(dictionary)
+
+from enum import Enum
+
+class Color(Enum):
+    RED = "R", 1
+    GREEN = "G", 2
+
+# Получение значения
+print(Color.RED.value[0])
+print(Color.RED.value[1])
+
+
+def add_group_states(states: dict, addr_group: dict, base_states: list, slave_states: dict) -> dict:
+    # states = {}
+    # addr_group = {"type":RegisterType.coil,"start_address":0,"count":3,"field_format":FieldFormat.U16,
+    #      "slaves":[
+    #           {"name":"brightness","type":RegisterType.holding, "start_address":0, "count":3,"field_format":FieldFormat.U16},
+    #       ]
+    #  }
+    # base_states = [True,False,False]
+    # slave_states = {"brightness":[50,70,20]}
+
+    count: int = addr_group["count"]
+    for i in range(count):
+        state = {"base": base_states[i]}
+        for key, value in slave_states.items():
+            state[key] = value[i]
+
+        states[states["index"]+i] = state
+
+    # На выходе получаем:
+    # states = {0:{"base":True, "brightness":50}, 1:{"base":False, "brightness":70}, 2:{"base":False, "brightness":20}}
+    states["index"] = states["index"] + count
+
+    return states
+
+
+class RegisterType(Enum):
+    coil = 1
+    holding = 2
+    discrete_input = 3
+
+class FieldFormat(Enum):
+    BOOL = 1
+    U16 = 2
+    U32 = 3
+
+# НАСТРОЙКА
+addresses_group = [
+    {"type": "coil", "start_address": 0, "count": 3, "field_format": "U16",
+     "slaves": [
+         {"name": "brightness", "type": "holding", "start_address": 0, "count": 3,
+          "field_format": "U16"},
+     ]
+     }
+]
+
+# АДРЕСА
+
+# ЗНАЧЕНИЯ, ГДЕ 0, 1, 2 - ЭТО ИНДЕКС УСТРОЙСТВА
+__entity_values = [{"base":True, "brightness":50}, {"base":False, "brightness":70}, {"base":False, "brightness":20}]
+
+# АДРЕСА В ENTITY
+addresses = {
+    "base": {"address": 0, "type": FieldFormat.U16},
+    "brightness": {"address": 0, "type": FieldFormat.U16}
+}
+
+addresses_group = [
+    {"type": RegisterType.holding, "start_address": 1147, "count": 1, "field_format": FieldFormat.U16},
+    {"type": RegisterType.holding, "start_address": 1140, "count": 6, "field_format": FieldFormat.U16},
+]
+
+__registers_values = {"index":0}
+for address_group in addresses_group:
+    values = [None] * address_group["count"]
+
+    slave_values = {}
+    for slave in address_group.get("slaves", []):
+        slave_values[slave["name"]] = values
+
+    add_group_states(__registers_values, address_group, values, slave_values)
+
+__registers_values.pop("index")
+
+print(__registers_values)
 
 # asyncio.run(read_holding(266,4))
+
 
 # Версия прошивки в числовом формате, Только в версиях прошивок, где есть Быстрый Modbus
 # asyncio.run(read_holding(320,4)) # Последний, это суффикс. Если не 0 - преобразовать
@@ -273,3 +421,74 @@ asyncio.run(read_holding(200,20,116, 502))
 
 
 # asyncio.run(read_holding(266,4,247, 503))
+
+# select __init__.
+addresses={
+    'base':
+        {'address': 16,
+         'type': RegisterType.holding,
+         'select_values':
+             {2: 'Отключить все выходы',
+              3: 'Управление отключено, вход измеряет частоту',
+              4: 'Управлять по mapping-матрице',
+              6: 'Управлять по mapping-матрице для кнопок'}
+         }
+}
+
+# select get_current_option.
+key=False
+addresses={
+    'base':
+        {'address': 16,
+         'type': RegisterType.holding,
+         'select_values':
+             {2: 'Отключить все выходы',
+              3: 'Управление отключено, вход измеряет частоту',
+              4: 'Управлять по mapping-матрице',
+              6: 'Управлять по mapping-матрице для кнопок'}
+         }
+}
+
+entity_values=[
+    {'base': False},
+    {'base': False},
+    {'base': False},
+    {'base': False},
+    {'base': False},
+    {'base': False},
+    {'base': 2},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0},
+    {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0}, {'base': 0},
+    {'base': 0}, {'base': 0}, {'base': 0}, {'base': 50}, {'base': 50}, {'base': 50}, {'base': 50}, {'base': 50}, {'base': 50},
+    {'base': 50}, {'base': 1000}, {'base': 1000}, {'base': 1000}, {'base': 1000}, {'base': 1000}, {'base': 1000}, {'base': 1000},
+    {'base': 300}, {'base': 300}, {'base': 300}, {'base': 300}, {'base': 300}, {'base': 300}, {'base': 300}
+]

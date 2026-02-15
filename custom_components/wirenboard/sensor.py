@@ -6,7 +6,7 @@ from homeassistant.components.sensor import  SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 
-from .device import WBMr
+from .device import Platform
 from .const import DOMAIN
 from .coordinator import WBCoordinator
 from .entity import WbEntity
@@ -15,15 +15,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    objects = []
     coordinator: WBCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    device: WBMr = coordinator.device
-    for obj in device.sensors:
-        for i in range(obj.count):
-            objects.append(EntryTriggerCounter(hass, coordinator, obj, i))
-
-    _LOGGER.info(f"📊 СОЗДАНО {len(objects)} СЕНСОРОВ")
-    async_add_entities(objects, update_before_add=False)
+    await coordinator.async_add_device_entities(Platform.sensor, EntryTriggerCounter, async_add_entities)
 
 
 class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
@@ -31,11 +24,10 @@ class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
             self,
             hass: HomeAssistant,
             coordinator: WBCoordinator,
-            obj,
-            idx: int
+            **kwargs
     ) -> None:
+        super().__init__(hass, **kwargs)
         _LOGGER.debug(f"select.py. ШАГ 1")
-        super().__init__(hass, obj, idx)
         CoordinatorEntity.__init__(self, coordinator)
 
         #self._attr_device_class = SensorDeviceClass.BATTERY
@@ -44,7 +36,7 @@ class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
         # self._attr_native_value = self._device.get_entry_trigger_count(self._channel)
 
     async def async_update(self) -> None:
-        self._attr_native_value = self._device.get_entry_trigger_count(self._channel)
+        self._attr_native_value = self.object.get_state(self.id)
 
     @property
     def native_value(self):
