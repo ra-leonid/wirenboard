@@ -46,6 +46,8 @@ class WbSelect(WbEntity, CoordinatorEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         await self.object.set_value(self.id, option)
         self.current_option = self.get_current_option()
+        # print(self.dict)
+        _LOGGER.info(f"{vars(self)}")
         self.async_write_ha_state()
 
     def get_current_option(self):
