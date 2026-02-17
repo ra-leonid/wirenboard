@@ -375,6 +375,12 @@ __registers_values.pop("index")
 
 print(__registers_values)
 
+# 2026-02-16 18:13:01.646 INFO (MainThread) [custom_components.wirenboard.coordinator] set_register_value на входе device_id=73; register_type=RegisterType.coil; addr=0; value=False
+# 2026-02-16 18:13:01.716 INFO (MainThread) [custom_components.wirenboard.coordinator] set_register_value вернуло True
+
+
+
+
 # asyncio.run(read_holding(266,4))
 
 

@@ -12,7 +12,7 @@ from homeassistant.const import (
     # CONF_SCAN_INTERVAL,
 )
 
-from .device import Model, Platform, WBMR6C, WBMCM8
+from .device import Model, Platform, WBMR6C, WBMCM8, WBMDM3
 from .coordinator import WBCoordinator
 
 from .const import (
@@ -22,15 +22,15 @@ from .const import (
     CONF_PORT2
 )
 
-# PLATFORMS = Platform._member_names_
+PLATFORMS = Platform._member_names_
 
-PLATFORMS = [
-    # "binary_sensor",
-    "select",
-    "sensor",
-    "switch",
-    "number",
-]
+# PLATFORMS = [
+#     # "binary_sensor",
+#     "select",
+#     "sensor",
+#     "switch",
+#     "number",
+# ]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,8 +50,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         match device["model"]:
             case Model.wbmr6c_v2:
                 wb_device = WBMR6C(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
-            # case Model.wbmcm8:
-            #     wb_device = WBMCM8(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
+            case Model.wbmcm8:
+                wb_device = WBMCM8(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
+            case Model.wbmd3:
+                wb_device = WBMDM3(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
             case _:
                 continue
 
@@ -84,6 +86,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         # TODO Реализовать отключение соединения по MODBUS
         #hass.data[DOMAIN][entry.entry_id]._hub.disconnect()
+        coordinator: WBCoordinator = hass.data[DOMAIN][entry.entry_id]
+        for hub in coordinator.get_hubs():
+            await hub.async_disconnect()
+            # hub.disconnect()
+            _LOGGER.warning(f"Разорвано соединение по Modbus с {hub.name}!")
+
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok

@@ -47,11 +47,11 @@ class WbNumber(WbEntity, CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self):
-        return self.object.get_state(self.id)
+        return self.object.get_state(self.id, "base")
 
     async def async_set_native_value(self, value) -> None:
-        await self.set_value("base", value)
-        #self.async_write_ha_state()
+        await self.set_value("base", self.address, self.register_type, self.field_format, value)
+        self.async_write_ha_state()
 
     #
     # @property

@@ -29,10 +29,15 @@ class WBCoordinator(DataUpdateCoordinator):
         self.__hubs = {}
         self.__devices = []
 
-    def __del__(self):
+    async def async_will_remove_from_hass(self):
+        """Вызывается перед удалением координатора."""
         for hub in self.__hubs.values():
-            hub.disconnect()
+            await hub.async_disconnect()
+            # hub.disconnect()
             _LOGGER.warning(f"Разорвано соединение по Modbus с {hub.name}!")
+
+    def get_hubs(self):
+        return self.__hubs.values()
 
     @property
     def devices(self):
@@ -126,7 +131,7 @@ class WBCoordinator(DataUpdateCoordinator):
     ) -> bool:
         hub: async_modbus_hub = await self._async_get_hub(host_ip, host_port)
 
-        _LOGGER.debug(f"set_register_value на входе register_type={register_type}; addr={address}; value={value}")
+        _LOGGER.info(f"set_register_value на входе device_id={device_id}; register_type={register_type}; addr={address}; value={value}")
         match register_type:
             case RegisterType.coil:
                 result = await hub.async_write_coils(address, [value], device_id)
@@ -134,7 +139,7 @@ class WBCoordinator(DataUpdateCoordinator):
                 result = await hub.async_write_holding(address, value, device_id)
             case _:
                 result = False
-        #
-        # _LOGGER.debug(f"set_register_value вернуло {result}")
+
+        _LOGGER.info(f"set_register_value вернуло {result}")
         # self.connected = result
         return result

@@ -60,9 +60,10 @@ class async_modbus_hub:
             # self.__is_connected = False
             raise ValueError(f"Не удалось подключиться к устройству: {e}")
 
-    def disconnect(self):
-        if self._client.connected:
-            self._client.close()
+    async def async_disconnect(self):
+        # if self._client.connected:
+        self._client.close()
+        self._client = None
         # self.__is_connected = False
 
     async def async_read_coils(self, address, count, device_id:int):

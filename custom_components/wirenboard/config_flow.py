@@ -302,7 +302,8 @@ class WBSmartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 _LOGGER.warning(f"Тип устройства '{model}' не найден в списке моделей Wirenboard")
 
-        hub.disconnect()
+        await hub.async_disconnect()
+
         return devices
 
     async def async_step_select_devices(

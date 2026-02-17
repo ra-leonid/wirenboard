@@ -25,20 +25,18 @@ class WbSwitch(WbEntity, CoordinatorEntity, SwitchEntity):
             coordinator: WBCoordinator,
             **kwargs
     ) -> None:
-        _LOGGER.debug(f"switch.py. ШАГ 1")
         super().__init__(hass, **kwargs)
         CoordinatorEntity.__init__(self, coordinator)
-        _LOGGER.debug(f"switch.py. ШАГ 2")
 
     @property
     def is_on(self) -> bool:
-        return self.object.get_state(self.id)
+        return self.object.get_state(self.id, "base")
 
     async def async_turn_off(self, **kwargs):
-        await self.set_value("base", False)
-        # self.async_write_ha_state()
+        await self.set_value("base", self.address, self.register_type, self.field_format, False)
+        self.async_write_ha_state()
 
 
     async def async_turn_on(self, **kwargs):
-        await self.set_value("base", True)
-        # self.async_write_ha_state()
+        await self.set_value("base", self.address, self.register_type, self.field_format, True)
+        self.async_write_ha_state()

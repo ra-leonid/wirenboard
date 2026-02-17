@@ -5,22 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6ced61c5-7413-4b0e-96f3-1b776261a22e" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../find/Test/.idea/Test.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/Test/2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/.idea/pythonProject.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/config_flow.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/const.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/manifest.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/wirenboard.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/light.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../1/2.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../1/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../1/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../1/__1.py" beforeDir="false" afterPath="$PROJECT_DIR$/../1/__1.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/wb.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config_flow.py" beforeDir="false" afterPath="$PROJECT_DIR$/config_flow.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/const.py" beforeDir="false" afterPath="$PROJECT_DIR$/const.py" afterDir="false" />
@@ -28,6 +16,7 @@
       <change beforePath="$PROJECT_DIR$/device.py" beforeDir="false" afterPath="$PROJECT_DIR$/device.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/entity.py" beforeDir="false" afterPath="$PROJECT_DIR$/entity.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/hub.py" beforeDir="false" afterPath="$PROJECT_DIR$/hub.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/light.py" beforeDir="false" afterPath="$PROJECT_DIR$/light.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/number.py" beforeDir="false" afterPath="$PROJECT_DIR$/number.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/select.py" beforeDir="false" afterPath="$PROJECT_DIR$/select.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/sensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/sensor.py" afterDir="false" />
@@ -50,20 +39,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "G:/home_assistant/hawb/custom_components/wirenboard",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature/test&quot;,
+    &quot;last_opened_file_path&quot;: &quot;G:/home_assistant/hawb/custom_components/wirenboard&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="G:\home_assistant\wirenboard\custom_components\wirenboard" />
@@ -89,6 +78,8 @@
       <workItem from="1770952652832" duration="19319000" />
       <workItem from="1771056582759" duration="30899000" />
       <workItem from="1771104602048" duration="39628000" />
+      <workItem from="1771232072140" duration="19327000" />
+      <workItem from="1771345822328" duration="13324000" />
     </task>
     <servers />
   </component>
@@ -101,11 +92,6 @@
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/select.py</url>
           <option name="timeStamp" value="5" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/number.py</url>
-          <line>52</line>
-          <option name="timeStamp" value="10" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

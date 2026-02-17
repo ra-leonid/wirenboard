@@ -5,22 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="392aaaee-0b0b-4754-97af-433d31775ddc" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../find/Test/.idea/Test.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/Test/2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/.idea/pythonProject.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/config_flow.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/const.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../find/pythonProject/manifest.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../wirenboard/.idea/wirenboard.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../wirenboard/light.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/2.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/__1.py" beforeDir="false" afterPath="$PROJECT_DIR$/__1.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/wb.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../wirenboard/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/config_flow.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/config_flow.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/const.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/const.py" afterDir="false" />
@@ -28,6 +16,7 @@
       <change beforePath="$PROJECT_DIR$/../wirenboard/device.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/device.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/entity.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/entity.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/hub.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/hub.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../wirenboard/light.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/light.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/number.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/number.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/select.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/select.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../wirenboard/sensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/../wirenboard/sensor.py" afterDir="false" />
@@ -49,21 +38,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.__1.executor": "Debug",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "G:/home_assistant/wirenboard/custom_components/wirenboard",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.2.executor&quot;: &quot;Run&quot;,
+    &quot;Python.__1.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature/test&quot;,
+    &quot;last_opened_file_path&quot;: &quot;G:/home_assistant/wirenboard/custom_components/1&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="G:\home_assistant\wirenboard\custom_components\1" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -96,6 +91,8 @@
       <workItem from="1770952640746" duration="6688000" />
       <workItem from="1771056570174" duration="7452000" />
       <workItem from="1771104574706" duration="14356000" />
+      <workItem from="1771232095321" duration="7118000" />
+      <workItem from="1771345827760" duration="1329000" />
     </task>
     <servers />
   </component>
@@ -115,5 +112,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/1$__1.coverage" NAME="__1 Coverage Results" MODIFIED="1771107407709" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/1$2.coverage" NAME="2 Coverage Results" MODIFIED="1771256871633" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

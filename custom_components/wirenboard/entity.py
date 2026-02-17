@@ -16,28 +16,50 @@ class WbEntity(Entity):
         self.__device_info = kwargs["device_info"]
         self.__device = self.__device_info["device"]
         # addresses={"base":{"address":int,"type":RegisterType, "select_values":{...}}}, "brightness":{"address":int,"type":RegisterType}}
-        self.__addresses = kwargs["addresses"]
         self.__id = kwargs["id"]
+
+        # self.__addresses = kwargs["addresses"]
+        addresses = kwargs["addresses"]
+        self.__address = addresses["base"]["address"]
+        self.__register_type = addresses["base"]["type"]
+        self.__field_format = addresses["base"]["field_format"]
 
         channel = kwargs.get('channel', "")
 
         if channel == "":
             prefix_channel = ""
         else:
-            prefix_channel = f"_{kwargs["object_name_id"]}_{channel}"
+            prefix_channel = f"_{channel}"
 
-        self._attr_unique_id = f"{self.__device_info["name"]}_{self.__device_info["serial_number"]}{prefix_channel}"
-        self.entity_id = f"{kwargs["platform_name"]}.{DOMAIN.lower()}_{self._attr_unique_id}"
-        self._attr_name = f"{kwargs["object_name"]} {channel}".strip()
+        unique_id = f"{self.__device_info["name"]}_{self.__device_info["serial_number"]}_{kwargs["object_name_id"]}{prefix_channel}"
+        name = f"{kwargs["object_name"]} {channel}".strip()
 
-        # entity_category = kwargs["entity_category"]
-        # if entity_category is not None:
-        #     self._attr_entity_category = entity_category
+        # _LOGGER.info(f"unique_id={unique_id}, name = {name}")
 
+        self._attr_unique_id = unique_id
+        self._attr_name = name
+        # self.entity_id = f"{kwargs["platform_name"]}.{DOMAIN.lower()}_{self._attr_unique_id}"
+
+        entity_category = kwargs["entity_category"]
+        if entity_category is not None:
+            self._attr_entity_category = entity_category
+
+
+    # @property
+    # def addresses(self):
+    #     return self.__addresses
 
     @property
-    def addresses(self):
-        return self.__addresses
+    def address(self):
+        return self.__address
+
+    @property
+    def register_type(self):
+        return self.__register_type
+
+    @property
+    def field_format(self):
+        return self.__field_format
 
     @property
     def id(self):
@@ -58,8 +80,8 @@ class WbEntity(Entity):
         identifiers = {
             (DOMAIN, f"{self.__device_info["name"]}_{self.__device_info["serial_number"]}")
         }
-        _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {self.__device_info["name"]}, model = {self.__device_info["model"]}, "
-            f"sw_version = {self.__device_info["sw_version"]}, manufacturer = {self.__device_info["manufacturer"]}")
+        # _LOGGER.info(f"DeviceInfo(identifiers={identifiers}, name = {self.__device_info["name"]}, model = {self.__device_info["model"]}, "
+        #     f"sw_version = {self.__device_info["sw_version"]}, manufacturer = {self.__device_info["manufacturer"]}")
 
         # TODO Рассмотреть возможность передачи через **kwargs
         return DeviceInfo(
@@ -72,7 +94,7 @@ class WbEntity(Entity):
             manufacturer = self.__device_info["manufacturer"]
         )
 
-    async def set_value(self, value_name, value) -> None:
-        await self.object.set_value(self.addresses, self.id, value_name, value)
+    async def set_value(self, value_name, address, register_type, field_format, value) -> None:
+        # await self.object.set_value(self.addresses, self.id, value_name, value)
+        await self.object.set_value_new(address, register_type, self.id, value_name, field_format, value)
         self._attr_available = self.__device.connected
-        self.async_write_ha_state()

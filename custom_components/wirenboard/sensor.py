@@ -36,11 +36,11 @@ class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
         # self._attr_native_value = self._device.get_entry_trigger_count(self._channel)
 
     async def async_update(self) -> None:
-        self._attr_native_value = self.object.get_state(self.id)
+        self._attr_native_value = self.object.get_state(self.id, "base")
 
     @property
     def native_value(self):
-        return self.object.get_state(self.id)
+        return self.object.get_state(self.id, "base")
 
     @property
     def icon(self):

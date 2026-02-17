@@ -16,7 +16,14 @@ from .const import (
     MR_INPUT_MODE,
     MR_INPUT_MODE_0,
     MR_STATUS_OUTPUTS_WHEN_POWER_APPLIED,
-    MSM_INPUT_MODE
+    MSM_INPUT_MODE,
+    MDM_PRESS_ACTION_INPUT,
+    MDM_PRESS_ACTION,
+    MDM_INPUT_MODE,
+    MDM_DIM_MODE,
+    MDM_DIM_CURVE,
+    PORT_SPEED,
+    PARITY_MODE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,7 +34,7 @@ class Platform(Enum):
     select = "se"
     switch = "sw"
     number = "nu"
-    # light = "li"
+    light = "li"
 
 class RegisterType(Enum):
     coil = 1
@@ -62,7 +69,7 @@ class DeviceObjectsGroup:
         self.__update_interval = kwargs.get("update_interval", 0)
         self.__entity_category = kwargs.get("entity_category", None)
 
-        self.__start_id = kwargs.get("start_id", 0)
+        self.__start_id = kwargs.get("start_id", None)
         self.__addresses_group = kwargs["addresses_group"]
         self.__last_date = 0
 
@@ -87,7 +94,8 @@ class DeviceObjectsGroup:
             addresses = {
                 "base": {
                     "address": address_group["start_address"] + i,
-                    "type": address_group["type"]
+                    "type": address_group["type"],
+                    "field_format": address_group["field_format"]
                 }
             }
 
@@ -96,11 +104,21 @@ class DeviceObjectsGroup:
                 addresses["base"]["select_values"] = select_values
 
             for slave in address_group.get("slaves", []):
-                addresses[slave["name"]] = {
+                name = slave["name"]
+                addresses[name] = {
                     "address": slave["start_address"] + i,
-                    "type": slave["type"]
+                    "type": slave["type"],
+                    "field_format": slave["field_format"]
                 }
+
+                if "min_val" in slave:
+                    addresses[name]["min_val"] = slave["min_val"]
+
+                if "max_val" in slave:
+                    addresses[name]["max_val"] = slave["max_val"]
+
                 select_values = slave.get("select_values")
+
                 if not select_values is None:
                     addresses[slave["name"]]["select_values"] = select_values
 
@@ -128,8 +146,11 @@ class DeviceObjectsGroup:
     def entity_category(self):
         return self.__entity_category
 
-    def get_channel(self, index: int) -> int:
-        return self.__start_id + index
+    def get_channel(self, index: int) -> str:
+        if self.__start_id is None:
+            return ""
+        else:
+            return str(self.__start_id + index)
 
     @property
     def device(self):
@@ -162,9 +183,9 @@ class DeviceObjectsGroup:
     def update_last_date(self):
         self.__last_date = time.monotonic()
 
-    def get_state(self, index:int):
+    def get_state(self, index:int, value_name):
         # {'base': None, 'brightness': None}
-        return self.__entity_values[index]["base"]
+        return self.__entity_values[index][value_name]
 
     @property
     def entity_values(self):
@@ -216,6 +237,27 @@ class DeviceObjectsGroup:
             _value
         )
 
+    async def set_value_new(self, address, register_type, entity_id, value_name, field_format, value):
+        match field_format:
+            case FieldFormat.U16:
+                _value = int(value)
+            case FieldFormat.U32:
+                _value = int(value)
+            case FieldFormat.BOOL:
+                _value = bool(value)
+            case _:
+                _value = int(value)
+
+        _LOGGER.info(f"Записываем _value={_value} (на вх. {value}); field_format={field_format}; "
+                     f"register_type={register_type}; address={address}; value_name={value_name}")
+
+        self.__entity_values[entity_id][value_name] = value
+        await self.__device.set_register_value(
+            register_type,
+            address,
+            _value
+        )
+
 class SwitchDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -223,6 +265,7 @@ class SwitchDeviceObjectsGroup(DeviceObjectsGroup):
 class LightDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
 
 class SensorDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
@@ -455,6 +498,8 @@ class WBSmart:
             obj.update_statuses(entity_values)
 
     async def set_register_value(self, register_type:RegisterType, address: int, value):
+
+        _LOGGER.info(f"Записываем self.device_id={self.device_id}; register_type={register_type}; address={address}; value={value}")
         self.connected = await self.coordinator.set_register_value(
             self.host_ip,
             self.host_port,
@@ -477,7 +522,6 @@ class WBSmart:
                     _LOGGER.debug(f"device.py get_objects_group шаг 3")
             return result
 
-
 class WBMR6C(WBSmart):
     def __init__(self, hass: HomeAssistant, coordinator, host_ip: str, host_port: int, device_id: int, model:Model) -> None:
 
@@ -488,8 +532,8 @@ class WBMR6C(WBSmart):
                 device=self,
                 name="Реле",
                 # name_id="switch",
-                start_id=1,
                 platform=Platform.switch,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.coil,"start_address":0, "count":6, "field_format":FieldFormat.BOOL},
                 ],
@@ -500,6 +544,7 @@ class WBMR6C(WBSmart):
                 name="Режим входа",
                 name_id="input_mode",
                 platform=Platform.select,
+                start_id=0,
                 addresses_group=[
                     {"type":RegisterType.holding, "start_address":16, "count":1, "field_format":FieldFormat.U16,
                      "select_values":MR_INPUT_MODE_0},
@@ -519,114 +564,159 @@ class WBMR6C(WBSmart):
                 ],
                 entity_category=EntityCategory.CONFIG
             ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счетчик срабатываний входа",
-            #     name_id="counter",
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":39, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":32, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик коротких нажатий",
-            #     name_id="short_click_counter",
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":471, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":464, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик длинных нажатий",
-            #     name_id="long_click_counter",
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":487, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":480, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик двойных нажатий",
-            #     name_id="double_click_counter",
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":503, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":496, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик короткого, а затем длинного нажатий",
-            #     name_id="short_long_click_counter",
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":519, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":512, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # InputDeviceObjectsGroup(
-            #     device=self,
-            #     name="Время подавления дребезга",
-            #     name_id="debounce_time",
-            #     platform=Platform.number,
-            #     min_val=0,
-            #     max_val=2000,
-            #     mode="box",  # box or slider
-            #     step=1,
-            #     scale=1,
-            #     entity_category=EntityCategory.CONFIG,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":27, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":20, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            # ),
-            # InputDeviceObjectsGroup(
-            #     device=self,
-            #     name="Время длинного нажатия",
-            #     name_id="long_click_time",
-            #     platform=Platform.number,
-            #     min_val=500,
-            #     max_val=5000,
-            #     mode="slider",  # box or slider
-            #     step=50,
-            #     scale=1,
-            #     entity_category=EntityCategory.CONFIG,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":1107, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":1100, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            # ),
-            # InputDeviceObjectsGroup(
-            #     device=self,
-            #     name="Время ожидания второго нажатия",
-            #     name_id="second_click_timeout",
-            #     platform=Platform.number,
-            #     min_val=0,
-            #     max_val=2000,
-            #     mode="slider",  # box or slider
-            #     step=50,
-            #     scale=1,
-            #     entity_category=EntityCategory.CONFIG,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":1147, "count":1, "field_format":FieldFormat.U16},
-            #         {"type":RegisterType.holding, "start_address":1140, "count":6, "field_format":FieldFormat.U16},
-            #     ],
-            # ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счетчик срабатываний входа",
+                name_id="counter",
+                platform=Platform.sensor,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":39, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":32, "count":6, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик коротких нажатий",
+                name_id="short_click_counter",
+                platform=Platform.sensor,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":471, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":464, "count":6, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик длинных нажатий",
+                name_id="long_click_counter",
+                platform=Platform.sensor,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":487, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":480, "count":6, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик двойных нажатий",
+                name_id="double_click_counter",
+                platform=Platform.sensor,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":503, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":496, "count":6, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик короткого, а затем длинного нажатий",
+                name_id="short_long_click_counter",
+                platform=Platform.sensor,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":519, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":512, "count":6, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время подавления дребезга",
+                name_id="debounce_time",
+                platform=Platform.number,
+                min_val=0,
+                max_val=2000,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":27, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":20, "count":6, "field_format":FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время длинного нажатия",
+                name_id="long_click_time",
+                platform=Platform.number,
+                min_val=500,
+                max_val=5000,
+                mode="slider",  # box or slider
+                step=50,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":1107, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":1100, "count":6, "field_format":FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время ожидания второго нажатия",
+                name_id="second_click_timeout",
+                platform=Platform.number,
+                min_val=0,
+                max_val=2000,
+                mode="slider",  # box or slider
+                step=50,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=0,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":1147, "count":1, "field_format":FieldFormat.U16},
+                    {"type":RegisterType.holding, "start_address":1140, "count":6, "field_format":FieldFormat.U16},
+                ],
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Скорость порта RS-485",
+                name_id="port_speed",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 110, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PORT_SPEED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Настройка бита чётности порта RS-485",
+                name_id="parity_mode",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 111, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PARITY_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Стоп-битов порта",
+                name_id="stopbits",
+                platform=Platform.number,
+                min_val=1,
+                max_val=2,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 112, "count": 1, "field_format": FieldFormat.U16},
+                ],
+            ),
         ]
 
 class WBMCM8(WBSmart):
@@ -639,78 +729,78 @@ class WBMCM8(WBSmart):
                 device=self,
                 name="Состояние входа",
                 name_id="input_status",
-                start_id=1,
                 platform=Platform.sensor,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.discrete_input, "start_address":0, "count":8, "field_format":FieldFormat.BOOL},
                 ],
                 update_interval=0.1
             ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счетчик срабатываний входа",
-            #     name_id="counter",
-            #     start_id=1,
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":60, "count":8, "field_format":FieldFormat.U32},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик коротких нажатий",
-            #     name_id="short_click_counter",
-            #     start_id=1,
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":464, "count":8, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик длинных нажатий",
-            #     name_id="long_click_counter",
-            #     start_id=1,
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":480, "count":8, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик двойных нажатий",
-            #     name_id="double_click_counter",
-            #     start_id=1,
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":496, "count":8, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
-            # SensorDeviceObjectsGroup(
-            #     device=self,
-            #     name="Счётчик короткого, а затем длинного нажатий",
-            #     name_id="short_long_click_counter",
-            #     start_id=1,
-            #     platform=Platform.sensor,
-            #     addresses_group=[
-            #         {"type":RegisterType.holding, "start_address":512, "count":8, "field_format":FieldFormat.U16},
-            #     ],
-            #     entity_category=EntityCategory.DIAGNOSTIC,
-            #     update_interval=1,
-            # ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счетчик срабатываний входа",
+                name_id="counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":60, "count":8, "field_format":FieldFormat.U32},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик коротких нажатий",
+                name_id="short_click_counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":464, "count":8, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик длинных нажатий",
+                name_id="long_click_counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":480, "count":8, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик двойных нажатий",
+                name_id="double_click_counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":496, "count":8, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счётчик короткого, а затем длинного нажатий",
+                name_id="short_long_click_counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.holding, "start_address":512, "count":8, "field_format":FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1,
+            ),
             SelectDeviceObjectsGroup(device=self,
                 name="Режим входа",
                 name_id="input_mode",
-                start_id=1,
                 platform=Platform.select,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.holding, "start_address":9, "count":8, "field_format":FieldFormat.U16,
                      "select_values":MSM_INPUT_MODE},
@@ -721,7 +811,6 @@ class WBMCM8(WBSmart):
                 device=self,
                 name="Время подавления дребезга",
                 name_id="debounce_time",
-                start_id=1,
                 platform=Platform.number,
                 min_val=0,
                 max_val=100,
@@ -729,6 +818,7 @@ class WBMCM8(WBSmart):
                 step=1,
                 scale=1,
                 entity_category=EntityCategory.CONFIG,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.holding, "start_address":20, "count":8, "field_format":FieldFormat.U16},
                 ],
@@ -737,7 +827,6 @@ class WBMCM8(WBSmart):
                 device=self,
                 name="Время длинного нажатия",
                 name_id="long_click_time",
-                start_id=1,
                 platform=Platform.number,
                 min_val=500,
                 max_val=5000,
@@ -745,6 +834,7 @@ class WBMCM8(WBSmart):
                 step=50,
                 scale=1,
                 entity_category=EntityCategory.CONFIG,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.holding, "start_address":1100, "count":8, "field_format":FieldFormat.U16},
                 ],
@@ -753,7 +843,6 @@ class WBMCM8(WBSmart):
                 device=self,
                 name="Время ожидания второго нажатия",
                 name_id="second_click_timeout",
-                start_id=1,
                 platform=Platform.number,
                 min_val=0,
                 max_val=2000,
@@ -761,8 +850,46 @@ class WBMCM8(WBSmart):
                 step=50,
                 scale=1,
                 entity_category=EntityCategory.CONFIG,
+                start_id=1,
                 addresses_group=[
                     {"type":RegisterType.holding, "start_address":1140, "count":8, "field_format":FieldFormat.U16},
+                ],
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Скорость порта RS-485",
+                name_id="port_speed",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 110, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PORT_SPEED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Настройка бита чётности порта RS-485",
+                name_id="parity_mode",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 111, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PARITY_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Стоп-битов порта",
+                name_id="stopbits",
+                platform=Platform.number,
+                min_val=1,
+                max_val=2,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 112, "count": 1, "field_format": FieldFormat.U16},
                 ],
             ),
         ]
@@ -776,34 +903,315 @@ class WBMDM3(WBSmart):
             LightDeviceObjectsGroup(
                 device=self,
                 name="Лампа",
-                start_id=1,
                 platform=Platform.light,
+                supported_brightness=True,
+                start_id=1,
                 addresses_group=[
-                    {"type":RegisterType.coil,"start_address":0,"count":3,"field_format":FieldFormat.U16,
+                    {"type":RegisterType.coil,"start_address":0,"count":3,"field_format":FieldFormat.BOOL,
                         "slaves":[
-                            {"name":"brightness","type":RegisterType.holding, "start_address":0, "count":3,"field_format":FieldFormat.U16},
+                            {"name":"brightness","type":RegisterType.holding,"start_address":0,"count":3,
+                             "field_format":FieldFormat.U16,"min_val":0,"max_val":100},
                         ]
                     }
                 ],
                 update_interval=0.1
             ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Кривая диммирования",
+                name_id="dim_curve",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 50, "count": 3, "field_format": FieldFormat.U16,
+                     "select_values": MDM_DIM_CURVE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Режим диммирования",
+                name_id="dim_mode",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 60, "count": 3, "field_format": FieldFormat.U16,
+                     "select_values": MDM_DIM_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Режим работы входа",
+                name_id="input_mode",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 416, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_INPUT_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Выход для короткого нажатия",
+                name_id="short_press_action_input",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 768, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION_INPUT},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Действие при коротком нажатии",
+                name_id="short_press_action",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 832, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Выход для длинного нажатия",
+                name_id="long_press_action_input",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 784, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION_INPUT},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Действие при длинном нажатии",
+                name_id="long_press_action",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 848, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Выход для двойного нажатия",
+                name_id="double_press_action_input",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 800, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION_INPUT},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Действие при двойном нажатии",
+                name_id="double_press_action",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 864, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Выход для короткого->длинного нажатия",
+                name_id="short_long_press_action_input",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 816, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION_INPUT},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Действие при коротком->длинном нажатии",
+                name_id="short_long_press_action",
+                platform=Platform.select,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 880, "count": 6, "field_format": FieldFormat.U16,
+                     "select_values": MDM_PRESS_ACTION},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время подавления дребезга",
+                name_id="debounce_time",
+                platform=Platform.number,
+                min_val=0,
+                max_val=2000,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 1160, "count": 6, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время длинного нажатия",
+                name_id="long_click_time",
+                platform=Platform.number,
+                min_val=500,
+                max_val=5000,
+                mode="slider",  # box or slider
+                step=50,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 1100, "count": 6, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Время ожидания второго нажатия",
+                name_id="second_click_timeout",
+                platform=Platform.number,
+                min_val=0,
+                max_val=2000,
+                mode="slider",  # box or slider
+                step=50,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 1140, "count": 6, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Нижний порог диммирования",
+                name_id="min_dimming",
+                platform=Platform.number,
+                min_val=0,
+                max_val=9999,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 70, "count": 3, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Верхний порог диммирования",
+                name_id="max_dimming",
+                platform=Platform.number,
+                min_val=0,
+                max_val=9999,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 80, "count": 3, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Скорость увеличения яркости",
+                name_id="ramp_up_speed",
+                platform=Platform.number,
+                min_val=0,
+                max_val=500,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 140, "count": 3, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Скорость уменьшения яркости",
+                name_id="ramp_down_speed",
+                platform=Platform.number,
+                min_val=0,
+                max_val=500,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 150, "count": 3, "field_format": FieldFormat.U16},
+                ],
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Период повторения продолжительного действия",
+                name_id="sustained_action_period",
+                platform=Platform.number,
+                min_val=5,
+                max_val=500,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 896, "count": 3, "field_format": FieldFormat.U16},
+                ],
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Скорость порта RS-485",
+                name_id="port_speed",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 110, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PORT_SPEED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Настройка бита чётности порта RS-485",
+                name_id="parity_mode",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 111, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PARITY_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Стоп-битов порта",
+                name_id="stopbits",
+                platform=Platform.number,
+                min_val=1,
+                max_val=2,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 112, "count": 1, "field_format": FieldFormat.U16},
+                ],
+            ),
         ]
 
-
-# 2026-02-13 06:21:32.254 WARNING (MainThread) [custom_components.wirenboard.hub] Error write config register, modbus Exception [Input/Output] No response received after 5 retries, continue with next request
-# 2026-02-13 06:21:33.740 WARNING (MainThread) [custom_components.wirenboard.device] Polling timed out for wbmcm8_69 - устройство не отвечает
-# 2026-02-13 06:21:49.741 WARNING (MainThread) [custom_components.wirenboard.device] Polling timed out for wbmr6c_116 - устройство не отвечает
-# 2026-02-13 06:22:04.745 WARNING (MainThread) [custom_components.wirenboard.device] Polling timed out for wbmcm8_69 - устройство не отвечает
-# 2026-02-13 06:22:20.739 WARNING (MainThread) [custom_components.wirenboard.device] Polling timed out for wbmr6c_116 - устройство не отвечает
-# 2026-02-13 06:22:32.262 ERROR (MainThread) [pymodbus.logging] No response received after 5 retries, continue with next request
-# >>>>> send: 0x0 0x18 0x0 0x0 0x0 0x8 0x74 0xf 0x0 0x1 0x0 0x1 0x1 0x1
-# >>>>> send: 0x0 0x18 0x0 0x0 0x0 0x8 0x74 0xf 0x0 0x1 0x0 0x8 0x1 0x1
-# >>>>> Repeating....
-# >>>>> send: 0x0 0x18 0x0 0x0 0x0 0x8 0x74 0xf 0x0 0x1 0x0 0x8 0x1 0x1
-# >>>>> send: 0x0 0x18 0x0 0x0 0x0 0x8 0x74 0xf 0x0 0x1 0x0 0x8 0x1 0x1
-# >>>>> send: 0x0 0x18 0x0 0x0 0x0 0x8 0x74 0xf 0x0 0x1 0x0 0x8 0x1 0x1
-# 2026-02-13 06:22:32.262 WARNING (MainThread) [custom_components.wirenboard.hub] Error write config register, modbus Exception [Input/Output] No response received after 5 retries, continue with next request
-# 2026-02-13 06:22:35.741 ERROR (MainThread) [custom_components.wirenboard.device] Не удалось получить состояния Состояние входа
-# 2026-02-13 06:22:35.741 WARNING (MainThread) [custom_components.wirenboard.device] Читали с устройства 69 holding адреса 0 регистров 8
-# 2026-02-13 06:22:51.740 ERROR (MainThread) [custom_components.wirenboard.device] Не удалось получить состояния Реле
-# 2026-02-13 06:22:51.741 WARNING (MainThread) [custom_components.wirenboard.device] Читали с устройства 116 coil адреса 0 регистров 6
