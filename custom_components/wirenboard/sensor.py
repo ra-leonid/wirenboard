@@ -16,10 +16,10 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     coordinator: WBCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    await coordinator.async_add_device_entities(Platform.sensor, EntryTriggerCounter, async_add_entities)
+    await coordinator.async_add_device_entities(Platform.sensor, WBSensor, async_add_entities)
 
 
-class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
+class WBSensor(WbEntity, CoordinatorEntity, SensorEntity):
     def __init__(
             self,
             hass: HomeAssistant,
@@ -34,6 +34,7 @@ class EntryTriggerCounter(WbEntity, CoordinatorEntity, SensorEntity):
         #self._attr_native_unit_of_measurement = PERCENTAGE
         # self._attr_entity_category = EntityCategory.DIAGNOSTIC
         # self._attr_native_value = self._device.get_entry_trigger_count(self._channel)
+        # self.state_class =
 
     async def async_update(self) -> None:
         self._attr_native_value = self.object.get_state(self.id, "base")

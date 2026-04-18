@@ -16,8 +16,15 @@ CONF_SLAVE_IDS_PORT2 = "ids_slave_port2"
 DEFAULT_IP = "192.168.0.7"
 DEFAULT_PORT1 = 502
 DEFAULT_PORT2 = 503
-DEFAULT_SLAVE_IDS_PORT1 = "116, 73"
+DEFAULT_SLAVE_IDS_PORT1 = "116, 198, 65, 66, 72, 73, 102, 104"
 DEFAULT_SLAVE_IDS_PORT2 = "247"
+
+INVERTED_INPUTS = {
+    "247_di_2": list(range(1,14)),
+    "72": [4,5,6],
+    "73": [4,5,6]
+}
+
 
 # Error messages
 ERROR_CANNOT_CONNECT = "cannot_connect"

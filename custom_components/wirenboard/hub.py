@@ -44,9 +44,15 @@ class async_modbus_hub:
 
     @property
     def connected(self) -> bool:
+        if self._client is None:
+            return False
+
         return self._client.connected
 
     async def connect(self):
+        if self._client is None:
+            return
+
         try:
             if not self.connected:
                 await self._client.connect()

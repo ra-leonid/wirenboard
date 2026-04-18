@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import logging
 from dataclasses import field
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 import async_timeout
 
@@ -24,12 +25,13 @@ from .const import (
     MDM_DIM_CURVE,
     PORT_SPEED,
     PARITY_MODE,
+    INVERTED_INPUTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 class Platform(Enum):
-    # binary_sensor = "bs"
+    binary_sensor = "bs"
     sensor = "sn"
     select = "se"
     switch = "sw"
@@ -44,6 +46,7 @@ class RegisterType(Enum):
 class Model(Enum):
     wbmr6c_v2 = "WB-MR6C v.2"
     wbmr6c_v3 = "WB-MR6C v.3"
+    mr6cu = "WB-MR6CU v.2"
     wbmio = "WB-MGE v.3"
     wbmd3 = "WB-MDM3"
     wb_led = "WB-LED"
@@ -53,7 +56,6 @@ class FieldFormat(Enum):
     BOOL = "bool"
     U16 = "int16"
     U32 = "int32"
-
 
 class GroupAddresses:
     def __init__(self, start_address: int, count: int):
@@ -266,10 +268,25 @@ class LightDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-
 class SensorDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+class BinarySensorDeviceObjectsGroup(DeviceObjectsGroup):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.__device_class = kwargs.get("device_class", None)
+        self.__inverted_inputs = kwargs.get("inverted_inputs", [])
+
+    def get_component_values(self, address_group, start_index):
+        index, components_values = super().get_component_values(address_group, start_index)
+
+        for values in components_values:
+            values["device_class"] = self.__device_class
+            values["inverted_inputs"] = self.__inverted_inputs
+
+        return index, components_values
 
 class SelectDeviceObjectsGroup(DeviceObjectsGroup):
     def __init__(self, **kwargs):
@@ -370,6 +387,9 @@ class WBSmart:
             "sw_version": self.sw_version,
             "manufacturer": self.manufacturer,
         }
+
+    def get_inverted_inputs(self, key):
+        return INVERTED_INPUTS.get(key, [])
 
     async def init_update(self, hub):
         try:
@@ -719,6 +739,73 @@ class WBMR6C(WBSmart):
             ),
         ]
 
+class WBMR6CU(WBSmart):
+    def __init__(self, hass: HomeAssistant, coordinator, host_ip: str, host_port: int, device_id: int, model:Model) -> None:
+
+        super().__init__(hass, coordinator, host_ip, host_port, device_id, model)
+        # Инициализируем атрибуты, которые используются в update()
+        self.objects = [
+            SwitchDeviceObjectsGroup(
+                device=self,
+                name="Реле",
+                # name_id="switch",
+                platform=Platform.switch,
+                start_id=1,
+                addresses_group=[
+                    {"type":RegisterType.coil,"start_address":0, "count":6, "field_format":FieldFormat.BOOL},
+                ],
+                update_interval=0.1
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Состояния выходов при подаче питания",
+                name_id="status_outputs_when_power_applied",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type":RegisterType.holding,"start_address":6, "count":1, "field_format":FieldFormat.U16,
+                     "select_values":MR_STATUS_OUTPUTS_WHEN_POWER_APPLIED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Скорость порта RS-485",
+                name_id="port_speed",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 110, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PORT_SPEED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Настройка бита чётности порта RS-485",
+                name_id="parity_mode",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 111, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PARITY_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Стоп-битов порта",
+                name_id="stopbits",
+                platform=Platform.number,
+                min_val=1,
+                max_val=2,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 112, "count": 1, "field_format": FieldFormat.U16},
+                ],
+            ),
+        ]
+
 class WBMCM8(WBSmart):
     def __init__(self, hass: HomeAssistant, coordinator, host_ip: str, host_port: int, device_id: int, model:Model) -> None:
 
@@ -894,6 +981,158 @@ class WBMCM8(WBSmart):
             ),
         ]
 
+class WBMGE(WBSmart):
+    def __init__(self, hass: HomeAssistant, coordinator, host_ip: str, host_port: int, device_id: int, model:Model) -> None:
+
+        super().__init__(hass, coordinator, host_ip, host_port, device_id, model)
+        # Инициализируем атрибуты, которые используются в update()
+        self.objects = [
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Скорость порта RS-485",
+                name_id="port_speed",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 110, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PORT_SPEED},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            SelectDeviceObjectsGroup(
+                device=self,
+                name="Настройка бита чётности порта RS-485",
+                name_id="parity_mode",
+                platform=Platform.select,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 111, "count": 1, "field_format": FieldFormat.U16,
+                     "select_values": PARITY_MODE},
+                ],
+                entity_category=EntityCategory.CONFIG
+            ),
+            InputDeviceObjectsGroup(
+                device=self,
+                name="Стоп-битов порта",
+                name_id="stopbits",
+                platform=Platform.number,
+                min_val=1,
+                max_val=2,
+                mode="box",  # box or slider
+                step=1,
+                scale=1,
+                entity_category=EntityCategory.CONFIG,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 112, "count": 1, "field_format": FieldFormat.U16},
+                ],
+            ),
+        ]
+
+    async def init_update(self, hub):
+
+        await super().init_update(hub)
+
+        module_channels = [
+            {"type": "do", "number": 1, "start_address": 1500},
+            {"type": "do", "number": 2, "start_address": 2500},
+            {"type": "do", "number": 3, "start_address": 3500},
+            {"type": "di", "number": 4, "start_address": 4000},
+            {"type": "do", "number": 4, "start_address": 4500},
+            {"type": "di", "number": 3, "start_address": 3000},
+            {"type": "di", "number": 2, "start_address": 2000},
+            {"type": "di", "number": 1, "start_address": 1000},
+        ]
+
+        try:
+            async with async_timeout.timeout(15):
+
+                di_do_status: list = await hub.async_read_holding(990, 8, self.device_id)
+
+                # Если данные получены успешно, считаем что подключение активно
+                self.connected = True
+        except TimeoutError:
+            _LOGGER.warning(f"Polling timed out for {self.name} - устройство не отвечает")
+            self.connected = False
+            return
+        except ModbusIOException as value_error:
+            _LOGGER.warning(f"ModbusIOException for {self.name}: {value_error.string}")
+            self.connected = False
+            return
+        except ModbusException as value_error:
+            _LOGGER.warning(f"ModbusException for {self.name}: {value_error.string}")
+            self.connected = False
+            return
+        except InvalidStateError as ex:
+            _LOGGER.error(f"InvalidStateError Exceptions for {self.name}")
+            self.connected = False
+            return
+        except Exception as e:
+            _LOGGER.error(f"Неожиданная ошибка при обновлении {self.name}: {e}")
+            self.connected = False
+            return
+
+        for index, status in enumerate(di_do_status):
+            module_channel = module_channels[index]
+
+            match status:
+                case 1:
+                    channel_count = 8
+                case 2:
+                    channel_count = 16
+                case _:
+                    continue
+
+            if module_channel["type"] == "di":
+                self.add_di_side_module(module_channel, channel_count)
+            else:
+                self.add_do_side_module(module_channel, channel_count)
+
+    def add_do_side_module(self, channel_params, channel_count):
+        number = channel_params["number"]
+        channel_type = channel_params["type"]
+
+        self.objects.append(SwitchDeviceObjectsGroup(
+                device=self,
+                name=f"{channel_type.upper()}-{number}. Реле",
+                name_id=f"{channel_type}_{number}_switch",
+                platform=Platform.switch,
+                start_id=1,
+                addresses_group=[
+                    {
+                        "type": RegisterType.coil,
+                        "start_address": channel_params["start_address"],
+                        "count": channel_count,
+                        "field_format": FieldFormat.BOOL
+                    },
+                ],
+                update_interval=0.1
+            )
+        )
+
+    def add_di_side_module(self, channel_params, channel_count):
+        number = channel_params["number"]
+        channel_type = channel_params["type"]
+        inverted_inputs_key = f"{self.device_id}_{channel_type}_{number}"
+        _LOGGER.info(f"INVERTED_INPUTS={INVERTED_INPUTS}; inverted_inputs_key={inverted_inputs_key}")
+
+        self.objects.append(BinarySensorDeviceObjectsGroup(
+                device=self,
+                name=f"{channel_type.upper()}-{number}. Вход",
+                name_id=f"{channel_type}_{number}_input_status",
+                platform=Platform.binary_sensor,
+                device_class=BinarySensorDeviceClass.WINDOW,
+                inverted_inputs=self.get_inverted_inputs(inverted_inputs_key),
+                start_id=1,
+                addresses_group=[
+                    {
+                        "type": RegisterType.coil,
+                        "start_address": channel_params["start_address"],
+                        "count": channel_count,
+                        "field_format": FieldFormat.BOOL
+                    },
+                ],
+                update_interval=1
+            )
+        )
+
 class WBMDM3(WBSmart):
     def __init__(self, hass: HomeAssistant, coordinator, host_ip: str, host_port: int, device_id: int, model:Model) -> None:
 
@@ -915,6 +1154,31 @@ class WBMDM3(WBSmart):
                     }
                 ],
                 update_interval=0.1
+            ),
+            BinarySensorDeviceObjectsGroup(
+                device=self,
+                name="Состояние входа",
+                name_id="input_status",
+                platform=Platform.binary_sensor,
+                inverted_inputs=self.get_inverted_inputs(f"{self.device_id}"),
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.discrete_input, "start_address": 0, "count": 6,
+                     "field_format": FieldFormat.BOOL},
+                ],
+                update_interval=1
+            ),
+            SensorDeviceObjectsGroup(
+                device=self,
+                name="Счетчик срабатываний входа",
+                name_id="counter",
+                platform=Platform.sensor,
+                start_id=1,
+                addresses_group=[
+                    {"type": RegisterType.holding, "start_address": 32, "count": 6, "field_format": FieldFormat.U16},
+                ],
+                entity_category=EntityCategory.DIAGNOSTIC,
+                update_interval=1
             ),
             SelectDeviceObjectsGroup(
                 device=self,

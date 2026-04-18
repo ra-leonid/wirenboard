@@ -12,7 +12,7 @@ from homeassistant.const import (
     # CONF_SCAN_INTERVAL,
 )
 
-from .device import Model, Platform, WBMR6C, WBMCM8, WBMDM3
+from .device import Model, Platform, WBMR6C, WBMR6CU, WBMCM8, WBMDM3, WBMGE
 from .coordinator import WBCoordinator
 
 from .const import (
@@ -50,10 +50,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         match device["model"]:
             case Model.wbmr6c_v2:
                 wb_device = WBMR6C(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
+            case Model.mr6cu:
+                wb_device = WBMR6CU(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
             case Model.wbmcm8:
                 wb_device = WBMCM8(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
             case Model.wbmd3:
                 wb_device = WBMDM3(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
+            case Model.wbmio:
+                wb_device = WBMGE(hass, wb_coordinator, device["host"], device["port"], device["slave_id"], device["model"])
             case _:
                 continue
 

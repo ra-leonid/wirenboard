@@ -54,6 +54,9 @@ class WBCoordinator(DataUpdateCoordinator):
 
         if hub is None:
             hub = async_modbus_hub(hass=self.hass, host=host_ip, port=host_port)
+            if hub is None:
+                return None
+
             self.__hubs[key] = hub
 
         _LOGGER.debug(f"_async_get_hub. Step2.  host_ip={host_ip}; host_port={host_port}; key={key}; hub={hub}; ")
@@ -130,6 +133,8 @@ class WBCoordinator(DataUpdateCoordinator):
             value
     ) -> bool:
         hub: async_modbus_hub = await self._async_get_hub(host_ip, host_port)
+        if hub is None:
+            return False
 
         _LOGGER.info(f"set_register_value на входе device_id={device_id}; register_type={register_type}; addr={address}; value={value}")
         match register_type:
